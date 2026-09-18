@@ -57,8 +57,9 @@ const MODES: { id: AppMode; label: string }[] = [
 ]
 
 const SUPPORT_EMAIL = 'support.pocketmind@gmail.com'
-const SUPPORT_MAILTO = `mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent('Code Review Assistant support')}`
+const SUPPORT_MAILTO = `mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent('PocketMind AI: Reviewer And Humanizer support')}`
 const PRIVACY_URL = 'https://noumanshakeil.github.io/#privacy-policy'
+const APP_DISPLAY_NAME = 'PocketMind AI: Reviewer And Humanizer'
 
 function SeverityPill({ severity }: { severity: string }) {
   const color =
@@ -330,7 +331,7 @@ export default function App() {
       <div className="flex h-full items-center justify-center p-8">
         <div className="text-center">
           <Sparkles className="mx-auto mb-3 h-8 w-8 text-[var(--accent)]" />
-          <h1 className="text-xl font-semibold">Code Review Assistant</h1>
+          <h1 className="text-xl font-semibold">{APP_DISPLAY_NAME}</h1>
           <p className="mt-2 text-sm text-[var(--muted)]">Starting…</p>
         </div>
         <Toaster theme="dark" richColors position="bottom-right" />
@@ -346,7 +347,7 @@ export default function App() {
             <Sparkles className="h-5 w-5" />
           </div>
           <div>
-            <div className="text-sm font-semibold">Code Review Assistant</div>
+            <div className="text-sm font-semibold">{APP_DISPLAY_NAME}</div>
             <div className="text-[11px] text-[var(--muted)]">
               {store.provider
                 ? `${store.provider.activeProvider} · ${store.provider.model}`
@@ -780,7 +781,7 @@ export default function App() {
           <DialogHeader>
             <DialogTitle>Help & support</DialogTitle>
             <DialogDescription>
-              PocketMind support for Code Review Assistant. We respond to product questions, billing,
+              PocketMind support for {APP_DISPLAY_NAME}. We respond to product questions, billing,
               and Store listing issues.
             </DialogDescription>
           </DialogHeader>

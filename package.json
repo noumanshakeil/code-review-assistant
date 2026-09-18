@@ -1,9 +1,9 @@
 {
-  "name": "code-review-assistant",
-  "productName": "Code Review Assistant",
+  "name": "pocketmind-ai-reviewer-and-humanizer",
+  "productName": "PocketMind AI: Reviewer And Humanizer",
   "private": true,
   "version": "1.0.0",
-  "description": "AI-powered Code Review Assistant and Humanizer for Windows",
+  "description": "AI-powered code reviewer and humanizer for Windows by PocketMind",
   "author": "PocketMind <support.pocketmind@gmail.com>",
   "type": "module",
   "main": "dist-electron/main.js",

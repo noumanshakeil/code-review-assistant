@@ -54,7 +54,7 @@ function createWindow() {
     height: 920,
     minWidth: 960,
     minHeight: 640,
-    title: 'Code Review Assistant',
+    title: 'PocketMind AI: Reviewer And Humanizer',
     backgroundColor: '#0f1419',
     webPreferences: {
       preload: resolvePreload(),

@@ -39,9 +39,11 @@ Output: `release/Code Review Assistant-*-x64.appx`
 
 ## Suggested listing copy
 
-**Title:** Code Review Assistant  
+**Title:** PocketMind AI: Reviewer And Humanizer  
 **Publisher:** PocketMind  
 **Support contact:** support.pocketmind@gmail.com  
+**Identity name:** `PocketMind.PocketMindAIReviewerAndHumanizer`  
+**Publisher CN:** `CN=78BD2D1C-2460-451B-91FD-410288D37531`
 
 **Short description (≤300 chars):**  
 Review and humanize code or text with your own AI keys. Ingest folders or GitHub repos, select up to five files, and run independent review or rewrite jobs — changes apply only after you confirm.

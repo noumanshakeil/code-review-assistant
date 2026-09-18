@@ -1,5 +1,5 @@
-appId: com.pocketmind.codereviewassistant
-productName: Code Review Assistant
+appId: com.pocketmind.aireviewerandhumanizer
+productName: "PocketMind AI: Reviewer And Humanizer"
 copyright: Copyright (c) PocketMind
 directories:
   output: release
@@ -16,7 +16,7 @@ extraResources:
       - "**/*"
 win:
   icon: build/icon.ico
-  executableName: CodeReviewAssistant
+  executableName: PocketMindAIReviewerAndHumanizer
   target:
     - target: nsis
       arch:
@@ -27,7 +27,7 @@ win:
     - target: appx
       arch:
         - x64
-  artifactName: "CodeReviewAssistant-${version}-${arch}.${ext}"
+  artifactName: "PocketMindAIReviewerAndHumanizer-${version}-${arch}.${ext}"
   signtoolOptions:
     publisherName: PocketMind
 nsis:
@@ -35,16 +35,16 @@ nsis:
   allowToChangeInstallationDirectory: true
   createDesktopShortcut: true
   createStartMenuShortcut: true
-  shortcutName: Code Review Assistant
+  shortcutName: "PocketMind AI: Reviewer And Humanizer"
   installerIcon: build/icon.ico
   uninstallerIcon: build/icon.ico
 appx:
-  identityName: PocketMind.CodeReviewAssistant
-  # Replace with your Partner Center Publisher ID CN before Store upload.
-  publisher: CN=PocketMind
+  # Must match Partner Center reserved identity exactly
+  identityName: PocketMind.PocketMindAIReviewerAndHumanizer
+  publisher: CN=78BD2D1C-2460-451B-91FD-410288D37531
   publisherDisplayName: PocketMind
-  displayName: Code Review Assistant
-  applicationId: CodeReviewAssistant
+  displayName: "PocketMind AI: Reviewer And Humanizer"
+  applicationId: PocketMindAIReviewerAndHumanizer
   backgroundColor: "#0F1720"
   languages:
     - en-US
