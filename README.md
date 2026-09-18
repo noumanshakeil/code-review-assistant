@@ -60,6 +60,7 @@ If `cursor` / `cursor-agent`, `claude`, or `codex` are on your PATH, select them
 | `npm run build:win` | Windows NSIS + portable `.exe` |
 | `npm run build:msix` | Windows AppX/MSIX (Store packaging) |
 | `npm run build:electron` | Package for current platform |
+| `npm run smoke` | Headless ingest/review/humanize/mutate confirmation checks |
 | `npm start` | Run packaged `dist-electron` main against `dist` |
 
 Packaging config: [`electron-builder.yml`](./electron-builder.yml). Output lands in `release/`.
