@@ -13,16 +13,7 @@ BRANCH="${BRANCH:-main}"
 DIR="${DIR:-$HOME/code-review-assistant}"
 
 if [[ -z "$REPO_URL" ]]; then
-  # Prefer GitHub if the agent finished publishing; otherwise Origin (Cursor).
-  if [[ -n "${GITHUB_REPO_URL:-}" ]]; then
-    REPO_URL="$GITHUB_REPO_URL"
-  else
-    REPO_URL="https://origin.cursor.com/git/muhammad-nouman-shakeel/tmp-00ab0fa27f64d78e.git"
-    BRANCH="${BRANCH:-main}"
-    echo "NOTE: Using Cursor Origin remote (no GitHub URL configured yet)."
-    echo "      After the agent publishes to GitHub, re-run with:"
-    echo "      REPO_URL=https://github.com/<you>/code-review-assistant.git bash scripts/install.sh"
-  fi
+  REPO_URL="${GITHUB_REPO_URL:-https://github.com/noumanshakeil/code-review-assistant.git}"
 fi
 
 need() { command -v "$1" >/dev/null 2>&1 || { echo "Missing dependency: $1"; exit 1; }; }
