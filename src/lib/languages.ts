@@ -1,0 +1,27 @@
+import type { LanguageId } from '@/shared/types'
+
+export const SUPPORTED_LANGUAGES: LanguageId[] = [
+  'javascript',
+  'typescript',
+  'python',
+  'go',
+  'rust',
+  'java',
+  'c',
+  'cpp',
+  'csharp',
+  'kotlin',
+  'swift',
+  'ruby',
+  'php',
+  'scala',
+  'lua',
+  'shell',
+  'sql',
+  'html',
+  'css',
+  'json',
+  'yaml',
+  'markdown',
+  'plaintext',
+]

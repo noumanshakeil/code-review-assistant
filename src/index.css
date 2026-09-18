@@ -1,0 +1,105 @@
+@import 'tailwindcss';
+
+@font-face {
+  font-family: 'IBM Plex Sans';
+  font-style: normal;
+  font-weight: 400 700;
+  font-display: swap;
+  src: local('IBM Plex Sans'), local('IBMPlexSans');
+}
+
+@font-face {
+  font-family: 'IBM Plex Mono';
+  font-style: normal;
+  font-weight: 400 600;
+  font-display: swap;
+  src: local('IBM Plex Mono'), local('IBMPlexMono');
+}
+
+:root {
+  --bg: #0c1218;
+  --bg-accent: #122033;
+  --surface: #141c27;
+  --surface-2: #1b2634;
+  --surface-3: #243142;
+  --border: #2c3b4f;
+  --fg: #e8eef6;
+  --muted: #8fa3b8;
+  --accent: #2bb0a6;
+  --accent-fg: #041512;
+  --danger: #d4534b;
+  --warn: #d4a017;
+  --ok: #3aa66a;
+  --glow: rgba(43, 176, 166, 0.18);
+  --font-sans: 'IBM Plex Sans', 'Segoe UI', sans-serif;
+  --font-mono: 'IBM Plex Mono', 'Cascadia Code', ui-monospace, monospace;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+  color: var(--fg);
+  background:
+    radial-gradient(1200px 600px at 10% -10%, var(--glow), transparent 55%),
+    radial-gradient(900px 500px at 90% 0%, rgba(61, 112, 168, 0.16), transparent 50%),
+    linear-gradient(165deg, var(--bg) 0%, var(--bg-accent) 48%, #0a1016 100%);
+  background-attachment: fixed;
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes pulse-soft {
+  0%,
+  100% {
+    opacity: 0.55;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+.animate-rise {
+  animation: rise-in 420ms ease-out both;
+}
+
+.animate-pulse-soft {
+  animation: pulse-soft 1.6s ease-in-out infinite;
+}

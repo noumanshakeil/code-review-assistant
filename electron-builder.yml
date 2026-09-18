@@ -1,0 +1,53 @@
+appId: com.codereviewassistant.app
+productName: Code Review Assistant
+copyright: Copyright © Code Review Assistant
+directories:
+  output: release
+  buildResources: build
+files:
+  - dist/**/*
+  - dist-electron/**/*
+  - package.json
+asar: true
+extraResources:
+  - from: resources
+    to: resources
+    filter:
+      - "**/*"
+win:
+  target:
+    - target: nsis
+      arch:
+        - x64
+    - target: portable
+      arch:
+        - x64
+    - target: appx
+      arch:
+        - x64
+  artifactName: "${productName}-${version}-${arch}.${ext}"
+  publisherName: Code Review Assistant
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: Code Review Assistant
+appx:
+  identityName: CodeReviewAssistant.Desktop
+  publisher: CN=CodeReviewAssistant
+  publisherDisplayName: Code Review Assistant
+  displayName: Code Review Assistant
+  applicationId: CodeReviewAssistant
+  languages:
+    - en-US
+linux:
+  target:
+    - AppImage
+    - deb
+  category: Development
+mac:
+  target:
+    - dmg
+  category: public.app-category.developer-tools
+publish: null
