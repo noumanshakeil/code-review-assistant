@@ -14,23 +14,23 @@ const PROVIDER_DEFAULTS: Record<string, { baseUrl: string; model: string; keyFie
 
 function mockComplete(messages: LlmMessage[]): string {
   const user = [...messages].reverse().find((m) => m.role === 'user')?.content || ''
-  const isHumanize = /humaniz/i.test(user) || messages.some((m) => /humaniz/i.test(m.content))
-  const isMutate = /propose (edits|mutations|changes)|write\/edit\/delete/i.test(user)
-  const isReview = /code review|find bugs|security/i.test(user)
+  const blob = messages.map((m) => m.content).join('\n')
+  const isHumanize = /humaniz/i.test(blob)
+  const isMutate = /propose file mutations|write\/edit\/delete|mutations:\s*\[/i.test(blob)
+  const isReview = /code review|find bugs|security/i.test(blob)
 
   if (isHumanize) {
+    const fenced = user.match(/```[\w]*\n?([\s\S]*?)```/)
+    const source = (fenced?.[1] || user).trim()
+    const humanized = source
+      .replace(/\bgetUserData\b/g, 'loadProfile')
+      .replace(/\bfetchData\b/g, 'pullRecords')
+      .replace(/\bprocessItem\b/g, 'handleRow')
+      .replace(/\bconst\s+([A-Z][A-Z0-9_]+)\b/g, (_m: string, name: string) => `const ${name.toLowerCase()}`)
+      .replace(/\/\/\s*TODO:.*/g, '')
+      .trim()
     return JSON.stringify({
-      humanized: user.includes('```')
-        ? user.replace(/```[\w]*\n?([\s\S]*?)```/, (_, code: string) => {
-            return code
-              .replace(/\bgetUserData\b/g, 'loadProfile')
-              .replace(/\bfetchData\b/g, 'pullRecords')
-              .replace(/\bprocessItem\b/g, 'handleRow')
-              .replace(/\bconst\s+([A-Z][A-Z0-9_]+)\b/g, (_m: string, name: string) => `const ${name.toLowerCase()}`)
-              .replace(/\/\/\s*TODO:.*/g, '')
-              .trim()
-          })
-        : '// humanized snippet\nfunction loadProfile(id) {\n  return store.find(id);\n}\n',
+      humanized: humanized || '// humanized snippet\nfunction loadProfile(id) {\n  return store.find(id);\n}\n',
       notes: [
         'Renamed generic AI-style identifiers to shorter domain verbs.',
         'Removed TODO noise and flattened overly descriptive names.',

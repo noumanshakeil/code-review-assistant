@@ -42,6 +42,7 @@ const defaults: Preferences = {
 
 const store = new Store<Preferences>({
   name: 'preferences',
+  projectName: 'code-review-assistant',
   defaults,
 })
 

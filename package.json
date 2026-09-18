@@ -16,7 +16,8 @@
     "preview": "vite preview",
     "lint": "oxlint",
     "typecheck": "tsc -b --pretty false",
-    "start": "electron ."
+    "start": "electron .",
+    "smoke": "tsx scripts/smoke.ts"
   },
   "dependencies": {
     "@monaco-editor/react": "^4.7.0",
