@@ -17,24 +17,29 @@ function mockComplete(messages: LlmMessage[]): string {
   const blob = messages.map((m) => m.content).join('\n')
   const isHumanize = /humaniz/i.test(blob)
   const isMutate = /propose file mutations|write\/edit\/delete|mutations:\s*\[/i.test(blob)
-  const isReview = /code review|find bugs|security/i.test(blob)
+  const isWritingReview = /writing \/ content review|natural-language|plaintext/i.test(blob)
+  const isReview = /code review|find bugs|security|Perform a review/i.test(blob)
 
   if (isHumanize) {
     const fenced = user.match(/```[\w]*\n?([\s\S]*?)```/)
-    const source = (fenced?.[1] || user).trim()
+    const dashed = user.match(/---\n([\s\S]*?)\n---/)
+    const source = (fenced?.[1] || dashed?.[1] || user).trim()
     const humanized = source
       .replace(/\bgetUserData\b/g, 'loadProfile')
       .replace(/\bfetchData\b/g, 'pullRecords')
       .replace(/\bprocessItem\b/g, 'handleRow')
       .replace(/\bconst\s+([A-Z][A-Z0-9_]+)\b/g, (_m: string, name: string) => `const ${name.toLowerCase()}`)
       .replace(/\/\/\s*TODO:.*/g, '')
+      .replace(/\butilize\b/gi, 'use')
+      .replace(/\bleverage\b/gi, 'use')
+      .replace(/\brobust\b/gi, 'solid')
       .trim()
     return JSON.stringify({
       humanized: humanized || '// humanized snippet\nfunction loadProfile(id) {\n  return store.find(id);\n}\n',
       notes: [
-        'Renamed generic AI-style identifiers to shorter domain verbs.',
-        'Removed TODO noise and flattened overly descriptive names.',
-        'Behavior preserved for the demonstrated transforms.',
+        'Renamed generic AI-style identifiers / buzzwords.',
+        'Tightened phrasing while keeping meaning.',
+        'Behavior or facts preserved for the demonstrated transforms.',
       ],
     })
   }
@@ -47,6 +52,30 @@ function mockComplete(messages: LlmMessage[]): string {
           path: 'snippet',
           rationale: 'Add a guard for empty input before processing.',
           after: '// proposed edit — confirm before apply\nif (!input) return null;\n',
+        },
+      ],
+    })
+  }
+
+  if (isWritingReview) {
+    return JSON.stringify({
+      summary:
+        'Writing review of your pasted plaintext. The text was received successfully — focusing on clarity, tone, and structure.',
+      findings: [
+        {
+          severity: 'medium',
+          file: 'snippet.txt',
+          line: 1,
+          title: 'Tighten promotional phrasing',
+          detail: 'Several clauses read like generic marketing copy and can be more specific.',
+          suggestion: 'Replace vague claims with one concrete detail or example.',
+        },
+        {
+          severity: 'low',
+          file: 'snippet.txt',
+          title: 'Vary sentence rhythm',
+          detail: 'Sentences are similar in length, which can feel AI-generated.',
+          suggestion: 'Mix a short punchy sentence with a longer explanatory one.',
         },
       ],
     })

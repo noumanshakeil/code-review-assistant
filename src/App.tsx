@@ -566,7 +566,10 @@ export default function App() {
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div>
                   <h2 className="text-lg font-semibold">Code review</h2>
-                  <p className="text-sm text-[var(--muted)]">Findings from your active provider — idle until you run.</p>
+                  <p className="text-sm text-[var(--muted)]">
+                    Reviews code or pasted plaintext/prose. Sidebar file list proves ingest worked — re-run after Replace &
+                    ingest if you changed content.
+                  </p>
                 </div>
                 <Button onClick={onReview} disabled={!!store.busy || !store.workspace}>
                   <Play className="h-4 w-4" />
