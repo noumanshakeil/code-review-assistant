@@ -3,7 +3,7 @@
   "productName": "Code Review Assistant",
   "private": true,
   "version": "1.0.0",
-  "description": "AI-powered Code Review Assistant & Humanizer — desktop app for Windows (.exe / .msix)",
+  "description": "AI-powered Code Review Assistant and Humanizer for Windows",
   "author": "PocketMind <support.pocketmind@gmail.com>",
   "type": "module",
   "main": "dist-electron/main.js",
