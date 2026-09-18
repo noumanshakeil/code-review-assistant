@@ -35,3 +35,7 @@ credentials.json
 
 # OS
 Thumbs.db
+
+# Local test captures
+screenshot*.webp
+screenshot*.png
