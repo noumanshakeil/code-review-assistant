@@ -58,6 +58,7 @@ const MODES: { id: AppMode; label: string }[] = [
 
 const SUPPORT_EMAIL = 'support.pocketmind@gmail.com'
 const SUPPORT_MAILTO = `mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent('Code Review Assistant support')}`
+const PRIVACY_URL = 'https://noumanshakeil.github.io/#privacy-policy'
 
 function SeverityPill({ severity }: { severity: string }) {
   const color =
@@ -804,6 +805,16 @@ export default function App() {
                 <Mail className="h-4 w-4" />
                 Email support
               </Button>
+              <Button
+                variant="outline"
+                onClick={() =>
+                  void getApi()
+                    .openExternal(PRIVACY_URL)
+                    .catch((err) => toast.error(err instanceof Error ? err.message : String(err)))
+                }
+              >
+                Privacy policy
+              </Button>
               <Button variant="outline" onClick={() => setHelpOpen(false)}>
                 Close
               </Button>
@@ -811,7 +822,14 @@ export default function App() {
             <div className="border-t border-[var(--border)] pt-3 text-xs text-[var(--muted)]">
               Privacy: API keys and GitHub tokens are stored locally via the OS keychain (or an
               encrypted file fallback). Nothing is sent to PocketMind servers. AI features call only
-              the provider you choose.
+              the provider you choose. Full policy:{' '}
+              <button
+                type="button"
+                className="underline hover:text-[var(--fg)]"
+                onClick={() => void getApi().openExternal(PRIVACY_URL)}
+              >
+                noumanshakeil.github.io/#privacy-policy
+              </button>
             </div>
           </div>
         </DialogContent>

@@ -10,7 +10,7 @@ Desktop app by **PocketMind** for ingesting text and code, selecting up to five 
 4. **Review / Humanize / Edit** — each selected file is handled by its own AI job. File changes always require confirmation.
 5. **Help** — opens support at **support.pocketmind@gmail.com**.
 
-**Secrets:** OS keychain (`keytar`) with AES-GCM encrypted file fallback. See [PRIVACY.md](./PRIVACY.md).
+**Secrets:** OS keychain (`keytar`) with AES-GCM encrypted file fallback. Privacy policy: https://noumanshakeil.github.io/#privacy-policy ([PRIVACY.md](./PRIVACY.md)).
 
 ## Quick start
 

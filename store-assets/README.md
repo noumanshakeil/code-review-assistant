@@ -54,7 +54,7 @@ Review and humanize code or text with your own AI keys. Ingest folders or GitHub
 - OpenAI, Anthropic, DeepSeek, Gemini, Mistral, Groq
 - Keys stored locally (OS keychain / encrypted fallback)
 
-**Privacy policy:** include `PRIVACY.md` content (or host it and paste the URL in Partner Center).
+**Privacy policy:** https://noumanshakeil.github.io/#privacy-policy (also in `PRIVACY.md`).
 
 ## Store compliance checklist
 

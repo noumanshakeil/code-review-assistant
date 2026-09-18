@@ -1,5 +1,6 @@
 # Privacy Policy — Code Review Assistant (PocketMind)
 
+**Live URL:** https://noumanshakeil.github.io/#privacy-policy  
 **Publisher:** PocketMind  
 **Support:** support.pocketmind@gmail.com  
 **Last updated:** 2026-09-18
