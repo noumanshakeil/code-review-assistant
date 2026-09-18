@@ -166,33 +166,19 @@ def main() -> None:
     master.resize((256, 256), Image.Resampling.LANCZOS).save(STORE / "logo-256.png")
     master.resize((300, 300), Image.Resampling.LANCZOS).save(STORE / "store-tile-icon-300.png")
 
+    # Base AppX assets only (scale/targetsize variants can break electron-builder makepri)
     for name, size in {
         "StoreLogo.png": (50, 50),
-        "StoreLogo.scale-200.png": (100, 100),
-        "StoreLogo.scale-400.png": (200, 200),
         "Square44x44Logo.png": (44, 44),
-        "Square44x44Logo.scale-200.png": (88, 88),
-        "Square44x44Logo.scale-400.png": (176, 176),
         "Square150x150Logo.png": (150, 150),
-        "Square150x150Logo.scale-200.png": (300, 300),
-        "Square150x150Logo.scale-400.png": (600, 600),
         "SmallTile.png": (71, 71),
-        "SmallTile.scale-200.png": (142, 142),
         "LargeTile.png": (310, 310),
-        "LargeTile.scale-200.png": (620, 620),
         "BadgeLogo.png": (24, 24),
     }.items():
         make_app_icon(max(size)).resize(size, Image.Resampling.LANCZOS).save(APPX / name)
 
     make_wide(310, 150).save(APPX / "Wide310x150Logo.png")
-    make_wide(620, 300).save(APPX / "Wide310x150Logo.scale-200.png")
-    make_wide(1240, 600).save(APPX / "Wide310x150Logo.scale-400.png")
     make_splash(620, 300).save(APPX / "SplashScreen.png")
-    make_splash(1240, 600).save(APPX / "SplashScreen.scale-200.png")
-    for ts in (16, 24, 32, 48, 256):
-        icon = make_app_icon(ts * 4).resize((ts, ts), Image.Resampling.LANCZOS)
-        icon.save(APPX / f"Square44x44Logo.targetsize-{ts}.png")
-        icon.save(APPX / f"Square44x44Logo.targetsize-{ts}_altform-unplated.png")
 
     make_feature_graphic(1920, 1080).save(STORE / "feature-graphic-1920x1080.png")
     make_feature_graphic(3840, 2160).save(STORE / "feature-graphic-3840x2160.png")

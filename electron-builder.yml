@@ -1,6 +1,6 @@
 appId: com.pocketmind.codereviewassistant
 productName: Code Review Assistant
-copyright: Copyright © PocketMind
+copyright: Copyright (c) PocketMind
 directories:
   output: release
   buildResources: build
@@ -49,9 +49,6 @@ appx:
     - en-US
   showNameOnTiles: false
   setBuildNumber: true
-  capabilities:
-    - runFullTrust
-    - internetClient
 linux:
   target:
     - AppImage
