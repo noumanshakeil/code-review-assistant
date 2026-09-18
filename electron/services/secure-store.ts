@@ -100,12 +100,16 @@ const fallbackSecretsPath = path.join(homedir(), '.code-review-assistant', 'secr
 export async function loadSecrets(): Promise<StoredSecrets> {
   const keytar = tryKeytar()
   if (keytar) {
-    const raw = await keytar.getPassword(SERVICE, ACCOUNT)
-    if (!raw) return {}
     try {
-      return JSON.parse(raw) as StoredSecrets
+      const raw = await keytar.getPassword(SERVICE, ACCOUNT)
+      if (!raw) return {}
+      try {
+        return JSON.parse(raw) as StoredSecrets
+      } catch {
+        return {}
+      }
     } catch {
-      return {}
+      // OS keychain unavailable (headless / disabled dbus) — fall through to encrypted file
     }
   }
   if (!fs.existsSync(fallbackSecretsPath)) return {}
@@ -123,16 +127,20 @@ export async function saveSecrets(secrets: StoredSecrets): Promise<void> {
   }
   const keytar = tryKeytar()
   if (keytar) {
-    if (Object.keys(cleaned).length === 0) {
-      try {
-        await keytar.deletePassword(SERVICE, ACCOUNT)
-      } catch {
-        /* empty */
+    try {
+      if (Object.keys(cleaned).length === 0) {
+        try {
+          await keytar.deletePassword(SERVICE, ACCOUNT)
+        } catch {
+          /* empty */
+        }
+      } else {
+        await keytar.setPassword(SERVICE, ACCOUNT, JSON.stringify(cleaned))
       }
-    } else {
-      await keytar.setPassword(SERVICE, ACCOUNT, JSON.stringify(cleaned))
+      return
+    } catch {
+      // fall through to encrypted file vault
     }
-    return
   }
   const dir = path.dirname(fallbackSecretsPath)
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true })

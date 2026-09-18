@@ -36,12 +36,12 @@ let mainWindow: BrowserWindow | null = null
 let currentWorkspace: WorkspaceSnapshot | null = null
 
 function resolvePreload(): string {
-  const candidates = ['preload.mjs', 'preload.js', 'preload.cjs']
+  const candidates = ['preload.cjs', 'preload.js', 'preload.mjs']
   for (const name of candidates) {
     const full = path.join(__dirname, name)
     if (fs.existsSync(full)) return full
   }
-  return path.join(__dirname, 'preload.mjs')
+  return path.join(__dirname, 'preload.cjs')
 }
 
 function createWindow() {

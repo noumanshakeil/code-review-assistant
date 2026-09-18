@@ -30,12 +30,21 @@ export default defineConfig({
             },
           },
         },
+        onstart(args) {
+          args.startup(['.', '--no-sandbox', '--remote-debugging-port=9229'])
+        },
       },
       preload: {
         input: 'electron/preload.ts',
         vite: {
           build: {
             outDir: 'dist-electron',
+            rollupOptions: {
+              output: {
+                format: 'cjs',
+                entryFileNames: 'preload.cjs',
+              },
+            },
           },
         },
       },
