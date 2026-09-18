@@ -1,6 +1,6 @@
-appId: com.codereviewassistant.app
+appId: com.pocketmind.codereviewassistant
 productName: Code Review Assistant
-copyright: Copyright © Code Review Assistant
+copyright: Copyright © PocketMind
 directories:
   output: release
   buildResources: build
@@ -15,6 +15,7 @@ extraResources:
     filter:
       - "**/*"
 win:
+  icon: build/icon.ico
   target:
     - target: nsis
       arch:
@@ -26,28 +27,39 @@ win:
       arch:
         - x64
   artifactName: "${productName}-${version}-${arch}.${ext}"
-  publisherName: Code Review Assistant
+  signtoolOptions:
+    publisherName: PocketMind
 nsis:
   oneClick: false
   allowToChangeInstallationDirectory: true
   createDesktopShortcut: true
   createStartMenuShortcut: true
   shortcutName: Code Review Assistant
+  installerIcon: build/icon.ico
+  uninstallerIcon: build/icon.ico
 appx:
-  identityName: CodeReviewAssistant.Desktop
-  publisher: CN=CodeReviewAssistant
-  publisherDisplayName: Code Review Assistant
+  identityName: PocketMind.CodeReviewAssistant
+  # Replace with your Partner Center Publisher ID CN before Store upload.
+  publisher: CN=PocketMind
+  publisherDisplayName: PocketMind
   displayName: Code Review Assistant
   applicationId: CodeReviewAssistant
+  backgroundColor: "#0F1720"
   languages:
     - en-US
+  showNameOnTiles: false
+  setBuildNumber: true
+  capabilities:
+    - runFullTrust
+    - internetClient
 linux:
   target:
     - AppImage
     - deb
   category: Development
+  icon: build/icon.png
 mac:
   target:
     - dmg
   category: public.app-category.developer-tools
-publish: null
+  icon: build/icon.png

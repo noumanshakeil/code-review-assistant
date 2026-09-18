@@ -50,6 +50,7 @@ export interface CraApi {
   ) => Promise<{ ok: boolean; error?: string; mutation: ProposedMutation }>
   completeLlm: (messages: LlmMessage[]) => Promise<LlmResponse>
   confirmDestructive: (message: string, detail?: string) => Promise<boolean>
+  openExternal: (url: string) => Promise<boolean>
 }
 
 const api: CraApi = {
@@ -78,6 +79,7 @@ const api: CraApi = {
   applyMutation: (mutation, confirmed) => ipcRenderer.invoke('mutate:apply', mutation, confirmed),
   completeLlm: (messages) => ipcRenderer.invoke('llm:complete', messages),
   confirmDestructive: (message, detail) => ipcRenderer.invoke('confirm:destructive', message, detail),
+  openExternal: (url) => ipcRenderer.invoke('shell:openExternal', url),
 }
 
 contextBridge.exposeInMainWorld('cra', api)

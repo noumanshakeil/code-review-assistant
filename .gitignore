@@ -36,6 +36,6 @@ credentials.json
 # OS
 Thumbs.db
 
-# Local test captures
-screenshot*.webp
-screenshot*.png
+# Local test captures (repo root only)
+/screenshot*.webp
+/screenshot*.png

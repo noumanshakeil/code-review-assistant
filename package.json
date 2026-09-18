@@ -4,7 +4,7 @@
   "private": true,
   "version": "1.0.0",
   "description": "AI-powered Code Review Assistant & Humanizer — desktop app for Windows (.exe / .msix)",
-  "author": "Code Review Assistant",
+  "author": "PocketMind <support.pocketmind@gmail.com>",
   "type": "module",
   "main": "dist-electron/main.js",
   "scripts": {
@@ -13,6 +13,7 @@
     "build:electron": "tsc -b && vite build && electron-builder --config electron-builder.yml",
     "build:win": "tsc -b && vite build && electron-builder --win --config electron-builder.yml",
     "build:msix": "tsc -b && vite build && electron-builder --win appx --config electron-builder.yml",
+    "assets:brand": "python3 scripts/generate-brand-assets.py",
     "preview": "vite preview",
     "lint": "oxlint",
     "typecheck": "tsc -b --pretty false",

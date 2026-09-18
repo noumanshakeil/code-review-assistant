@@ -245,6 +245,13 @@ function registerIpc() {
     })
     return res.response === 1
   })
+
+  ipcMain.handle('shell:openExternal', async (_e, url: string) => {
+    const allowed = /^https?:\/\//i.test(url) || /^mailto:/i.test(url)
+    if (!allowed) throw new Error('Only http(s) and mailto links are allowed.')
+    await shell.openExternal(url)
+    return true
+  })
 }
 
 app.whenReady().then(() => {

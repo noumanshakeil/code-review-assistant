@@ -3,10 +3,12 @@ import Editor from '@monaco-editor/react'
 import {
   AlertTriangle,
   Check,
+  CircleHelp,
   ClipboardPaste,
   FolderOpen,
   GitBranch,
   Loader2,
+  Mail,
   Play,
   Settings2,
   Sparkles,
@@ -54,6 +56,9 @@ const MODES: { id: AppMode; label: string }[] = [
   { id: 'mutate', label: 'Edit' },
 ]
 
+const SUPPORT_EMAIL = 'support.pocketmind@gmail.com'
+const SUPPORT_MAILTO = `mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent('Code Review Assistant support')}`
+
 function SeverityPill({ severity }: { severity: string }) {
   const color =
     severity === 'critical' || severity === 'high'
@@ -73,6 +78,7 @@ export default function App() {
   const [githubToken, setGithubToken] = useState('')
   const [mutatePrompt, setMutatePrompt] = useState('')
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const [helpOpen, setHelpOpen] = useState(false)
   const [pendingMutation, setPendingMutation] = useState<ProposedMutation | null>(null)
   const [models, setModels] = useState<string[]>([])
   const [loadingModels, setLoadingModels] = useState(false)
@@ -364,6 +370,10 @@ export default function App() {
             </button>
           ))}
         </nav>
+        <Button variant="outline" size="sm" onClick={() => setHelpOpen(true)}>
+          <CircleHelp className="h-4 w-4" />
+          Help
+        </Button>
         <Button variant="outline" size="sm" onClick={() => void openSettings()}>
           <Settings2 className="h-4 w-4" />
           Models & keys
@@ -760,6 +770,49 @@ export default function App() {
             <Button onClick={saveSettings} disabled={!!store.busy}>
               Save & continue
             </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={helpOpen} onOpenChange={setHelpOpen}>
+        <DialogContent className="max-h-[85vh] overflow-auto">
+          <DialogHeader>
+            <DialogTitle>Help & support</DialogTitle>
+            <DialogDescription>
+              PocketMind support for Code Review Assistant. We respond to product questions, billing,
+              and Store listing issues.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 text-sm">
+            <div className="rounded-lg border border-[var(--border)] bg-[var(--surface-2)] p-3">
+              <div className="text-xs uppercase tracking-wide text-[var(--muted)]">Email</div>
+              <div className="mt-1 font-medium">{SUPPORT_EMAIL}</div>
+            </div>
+            <p className="text-[var(--muted)]">
+              Include your Windows version, app version, and a short description of what you need.
+              API keys stay on your device — never paste keys into email.
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                onClick={() =>
+                  void getApi()
+                    .openExternal(SUPPORT_MAILTO)
+                    .then(() => toast.success('Opening your email app…'))
+                    .catch((err) => toast.error(err instanceof Error ? err.message : String(err)))
+                }
+              >
+                <Mail className="h-4 w-4" />
+                Email support
+              </Button>
+              <Button variant="outline" onClick={() => setHelpOpen(false)}>
+                Close
+              </Button>
+            </div>
+            <div className="border-t border-[var(--border)] pt-3 text-xs text-[var(--muted)]">
+              Privacy: API keys and GitHub tokens are stored locally via the OS keychain (or an
+              encrypted file fallback). Nothing is sent to PocketMind servers. AI features call only
+              the provider you choose.
+            </div>
           </div>
         </DialogContent>
       </Dialog>
