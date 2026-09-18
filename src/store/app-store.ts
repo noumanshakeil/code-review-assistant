@@ -21,6 +21,8 @@ interface AppState {
   secretStatus: Record<string, boolean>
   setMode: (mode: AppMode) => void
   setWorkspace: (workspace: WorkspaceSnapshot | null) => void
+  /** Update file contents without treating it as a brand-new ingest (keeps selection). */
+  syncWorkspace: (workspace: WorkspaceSnapshot) => void
   setSelectedFileId: (id: string | null) => void
   setReview: (review: ReviewResult | null) => void
   setHumanize: (humanize: HumanizeResult | null) => void
@@ -51,6 +53,12 @@ export const useAppStore = create<AppState>((set) => ({
       humanize: null,
       mutations: [],
     }),
+  syncWorkspace: (workspace) =>
+    set((state) => ({
+      workspace,
+      selectedFileId:
+        workspace.files.some((f) => f.id === state.selectedFileId) ? state.selectedFileId : workspace.files[0]?.id ?? null,
+    })),
   setSelectedFileId: (selectedFileId) => set({ selectedFileId }),
   setReview: (review) => set({ review }),
   setHumanize: (humanize) => set({ humanize }),

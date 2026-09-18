@@ -30,7 +30,12 @@ import {
 import { getApi, hasApi } from '@/lib/api'
 import { cn, formatBytes } from '@/lib/utils'
 import { useAppStore } from '@/store/app-store'
-import { SUPPORTED_LANGUAGES } from '@/lib/languages'
+import {
+  LANGUAGE_OPTIONS,
+  extensionForLanguage,
+  labelForLanguage,
+  monacoLanguage,
+} from '@/lib/languages'
 import type {
   AgentCliStatus,
   AppMode,
@@ -142,12 +147,29 @@ export default function App() {
 
   const onPasteIngest = () =>
     withBusy('Ingesting paste…', async () => {
-      if (!paste.trim()) throw new Error('Paste some code first.')
-      const ws = await getApi().ingestPaste(paste, pasteLang, `snippet.${pasteLang === 'typescript' ? 'ts' : 'txt'}`)
+      const content = paste
+      if (!content.trim()) {
+        throw new Error(
+          store.workspace
+            ? 'Paste new text in the compose box above, then click Ingest. Editing the loaded file does not replace the workspace until you re-ingest.'
+            : 'Paste some code first.',
+        )
+      }
+      const fileName = `snippet.${extensionForLanguage(pasteLang)}`
+      const ws = await getApi().ingestPaste(content, pasteLang, fileName)
+      // Ensure main-process + UI both point at the new workspace only
+      await getApi().setWorkspace(ws)
       store.setWorkspace(ws)
       store.setMode('ingest')
-      toast.success(`Loaded paste as ${ws.files[0]?.relativePath}`)
+      setPaste('')
+      toast.success(`Loaded ${labelForLanguage(pasteLang)} paste as ${ws.files[0]?.relativePath}`)
     })
+
+  const onStartNewPaste = () => {
+    setPaste('')
+    store.setMode('ingest')
+    toast.message('Compose a new paste below, then Ingest to replace the current workspace.')
+  }
 
   const onFolderIngest = () =>
     withBusy('Scanning folder…', async () => {
@@ -170,20 +192,28 @@ export default function App() {
 
   const onReview = () =>
     withBusy('Running review…', async () => {
-      if (!store.workspace) throw new Error('Ingest code first.')
-      const review = await getApi().runReview(store.workspace)
+      const ws = (await getApi().getWorkspace()) || store.workspace
+      if (!ws) throw new Error('Ingest code first.')
+      store.syncWorkspace(ws)
+      const review = await getApi().runReview(ws)
       store.setReview(review)
       store.setMode('review')
-      toast.success(review.provider === 'mock' ? 'Mock review ready' : 'Review complete')
+      toast.success(
+        `${review.provider === 'mock' ? 'Mock review ready' : 'Review complete'} · ${ws.files[0]?.relativePath ?? ws.name}`,
+      )
     })
 
   const onHumanize = () =>
     withBusy('Humanizing…', async () => {
-      if (!selectedFile) throw new Error('Select a file to humanize.')
-      const result = await getApi().runHumanize(selectedFile)
+      const ws = (await getApi().getWorkspace()) || store.workspace
+      if (!ws) throw new Error('Ingest code first.')
+      store.syncWorkspace(ws)
+      const file = ws.files.find((f) => f.id === store.selectedFileId) ?? ws.files[0]
+      if (!file) throw new Error('Select a file to humanize.')
+      const result = await getApi().runHumanize(file)
       store.setHumanize(result)
       store.setMode('humanize')
-      toast.success('Humanized draft ready — apply only after confirmation')
+      toast.success(`Humanized draft ready · ${file.relativePath} (${labelForLanguage(file.language)})`)
     })
 
   const applyHumanize = () =>
@@ -431,12 +461,27 @@ export default function App() {
                   </div>
                 ) : (
                   <div className="mx-auto flex max-w-3xl flex-col gap-3">
-                    <h2 className="text-lg font-semibold">Paste code & wait</h2>
-                    <p className="text-sm text-[var(--muted)]">
-                      Load a snippet, then sit idle until you run Review, Humanize, or Mutate. {SUPPORTED_LANGUAGES.length}+ languages recognized.
-                    </p>
+                    <div className="flex flex-wrap items-start justify-between gap-2">
+                      <div>
+                        <h2 className="text-lg font-semibold">
+                          {store.workspace ? 'Paste new code (replaces workspace)' : 'Paste code & wait'}
+                        </h2>
+                        <p className="text-sm text-[var(--muted)]">
+                          {store.workspace
+                            ? `Currently loaded: ${store.workspace.name} (${labelForLanguage(
+                                store.workspace.files[0]?.language ?? 'plaintext',
+                              )}). Paste below and click Ingest to replace it before Review/Humanize.`
+                            : `Load a snippet, then sit idle until you run Review, Humanize, or Mutate. ${LANGUAGE_OPTIONS.length} languages supported, including C++.`}
+                        </p>
+                      </div>
+                      {store.workspace && (
+                        <Button variant="outline" size="sm" type="button" onClick={onStartNewPaste}>
+                          Clear compose box
+                        </Button>
+                      )}
+                    </div>
                     <div className="flex flex-wrap items-end gap-3">
-                      <div className="min-w-[160px]">
+                      <div className="min-w-[180px]">
                         <Label htmlFor="lang">Language</Label>
                         <select
                           id="lang"
@@ -444,49 +489,69 @@ export default function App() {
                           value={pasteLang}
                           onChange={(e) => setPasteLang(e.target.value as LanguageId)}
                         >
-                          {SUPPORTED_LANGUAGES.map((l) => (
-                            <option key={l} value={l}>
-                              {l}
+                          {LANGUAGE_OPTIONS.map((l) => (
+                            <option key={l.id} value={l.id}>
+                              {l.label}
                             </option>
                           ))}
                         </select>
                       </div>
                       <Button onClick={onPasteIngest} disabled={!!store.busy}>
                         <ClipboardPaste className="h-4 w-4" />
-                        Ingest paste
+                        {store.workspace ? 'Replace & ingest' : 'Ingest paste'}
                       </Button>
                     </div>
+                    <Textarea
+                      className="min-h-[160px] font-mono text-sm"
+                      placeholder={
+                        pasteLang === 'cpp'
+                          ? '// Paste C++ here, then Replace & ingest…'
+                          : pasteLang === 'plaintext'
+                            ? 'Paste plain text here, then Replace & ingest…'
+                            : '// Paste source here, then ingest…'
+                      }
+                      value={paste}
+                      onChange={(e) => setPaste(e.target.value)}
+                    />
                   </div>
                 )}
               </div>
               <div className="min-h-0">
-                {store.mode === 'ingest' && !selectedFile ? (
-                  <Textarea
-                    className="h-full min-h-[320px] resize-none rounded-none border-0 bg-transparent font-mono text-sm"
-                    placeholder="// Paste source here…"
-                    value={paste}
-                    onChange={(e) => setPaste(e.target.value)}
-                  />
-                ) : selectedFile ? (
-                  <Editor
-                    height="100%"
-                    theme="vs-dark"
-                    language={selectedFile.language === 'csharp' ? 'csharp' : selectedFile.language}
-                    value={selectedFile.content}
-                    options={{
-                      minimap: { enabled: false },
-                      fontFamily: 'IBM Plex Mono, Cascadia Code, monospace',
-                      fontSize: 13,
-                      readOnly: false,
-                      automaticLayout: true,
-                    }}
-                    onChange={(value) => {
-                      if (!value || !selectedFile) return
-                      void getApi()
-                        .updateFile(selectedFile.id, value)
-                        .then((ws) => ws && store.setWorkspace(ws))
-                    }}
-                  />
+                {store.mode === 'ingest' && selectedFile ? (
+                  <div className="flex h-full min-h-0 flex-col">
+                    <div className="border-b border-[var(--border)] px-3 py-2 text-xs text-[var(--muted)]">
+                      Loaded file · {selectedFile.relativePath} · {labelForLanguage(selectedFile.language)} — edits here
+                      update this file only; they do not change the compose box above.
+                    </div>
+                    <div className="min-h-0 flex-1">
+                      <Editor
+                        height="100%"
+                        theme="vs-dark"
+                        language={monacoLanguage(selectedFile.language)}
+                        value={selectedFile.content}
+                        options={{
+                          minimap: { enabled: false },
+                          fontFamily: 'IBM Plex Mono, Cascadia Code, monospace',
+                          fontSize: 13,
+                          readOnly: false,
+                          automaticLayout: true,
+                        }}
+                        onChange={(value) => {
+                          if (value === undefined || !selectedFile) return
+                          void getApi()
+                            .updateFile(selectedFile.id, value)
+                            .then((ws) => {
+                              if (!ws) return
+                              store.syncWorkspace(ws)
+                            })
+                        }}
+                      />
+                    </div>
+                  </div>
+                ) : store.mode === 'ingest' ? (
+                  <div className="flex h-full items-center justify-center p-6 text-sm text-[var(--muted)]">
+                    Nothing loaded yet. Use the compose box above, then Ingest.
+                  </div>
                 ) : (
                   <div className="flex h-full items-center justify-center text-sm text-[var(--muted)]">
                     Clone a repository to populate the editor.
@@ -570,13 +635,13 @@ export default function App() {
                 <div className="grid min-h-0 flex-1 grid-rows-2 lg:grid-rows-1 lg:grid-cols-2">
                   <div className="min-h-0 border-b border-[var(--border)] lg:border-b-0 lg:border-r">
                     <div className="border-b border-[var(--border)] px-3 py-2 text-xs text-[var(--muted)]">Original</div>
-                    <Editor height="100%" theme="vs-dark" language={selectedFile?.language || 'plaintext'} value={store.humanize.original} options={{ readOnly: true, minimap: { enabled: false }, fontSize: 12 }} />
+                    <Editor height="100%" theme="vs-dark" language={monacoLanguage(selectedFile?.language || 'plaintext')} value={store.humanize.original} options={{ readOnly: true, minimap: { enabled: false }, fontSize: 12 }} />
                   </div>
                   <div className="min-h-0">
                     <div className="border-b border-[var(--border)] px-3 py-2 text-xs text-[var(--muted)]">
                       Humanized · {store.humanize.notes.join(' · ')}
                     </div>
-                    <Editor height="100%" theme="vs-dark" language={selectedFile?.language || 'plaintext'} value={store.humanize.humanized} options={{ readOnly: true, minimap: { enabled: false }, fontSize: 12 }} />
+                    <Editor height="100%" theme="vs-dark" language={monacoLanguage(selectedFile?.language || 'plaintext')} value={store.humanize.humanized} options={{ readOnly: true, minimap: { enabled: false }, fontSize: 12 }} />
                   </div>
                 </div>
               )}

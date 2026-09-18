@@ -42,7 +42,8 @@ const defaults: Preferences = {
 
 const store = new Store<Preferences>({
   name: 'preferences',
-  projectName: 'code-review-assistant',
+  // electron-store types omit projectName; required when running outside Electron (smoke tests)
+  ...({ projectName: 'code-review-assistant' } as object),
   defaults,
 })
 
