@@ -16,6 +16,7 @@ extraResources:
       - "**/*"
 win:
   icon: build/icon.ico
+  executableName: CodeReviewAssistant
   target:
     - target: nsis
       arch:
@@ -48,7 +49,7 @@ appx:
   languages:
     - en-US
   showNameOnTiles: false
-  setBuildNumber: true
+  setBuildNumber: false
 linux:
   target:
     - AppImage

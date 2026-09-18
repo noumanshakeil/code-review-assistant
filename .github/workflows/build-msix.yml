@@ -25,12 +25,31 @@ jobs:
       - name: Brand assets
         run: python scripts/generate-brand-assets.py
       - name: Build AppX / MSIX
+        id: build
+        continue-on-error: true
         run: npm run build:msix
-      - name: Upload package
+      - name: Dump AppxManifest on failure
+        if: steps.build.outcome == 'failure'
+        shell: pwsh
+        run: |
+          Get-ChildItem -Recurse release -Filter AppxManifest.xml | ForEach-Object {
+            Write-Host "==== $($_.FullName) ===="
+            Get-Content $_.FullName
+          }
+          Get-ChildItem -Recurse release -Filter mapping.txt | ForEach-Object {
+            Write-Host "==== $($_.FullName) ===="
+            Get-Content $_.FullName | Select-Object -First 80
+          }
+      - name: Upload package or staging
         uses: actions/upload-artifact@v4
         with:
           name: code-review-assistant-msix
           path: |
             release/*.appx
             release/*.appxupload
+            release/__appx-*/**
             store-assets/**
+          if-no-files-found: warn
+      - name: Fail if build failed
+        if: steps.build.outcome == 'failure'
+        run: exit 1
