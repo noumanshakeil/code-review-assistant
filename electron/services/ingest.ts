@@ -94,7 +94,12 @@ export async function ingestFolder(rootPath: string, name?: string): Promise<Fol
   return { workspace, skipped }
 }
 
-export async function ingestPaste(content: string, language: LanguageId = 'plaintext', fileName = 'snippet.txt'): Promise<WorkspaceSnapshot> {
+export async function ingestPaste(
+  content: string,
+  language: LanguageId = 'plaintext',
+  fileName = 'snippet.txt',
+  existing?: WorkspaceSnapshot | null,
+): Promise<WorkspaceSnapshot> {
   const file: CodeFile = {
     id: randomUUID(),
     path: fileName,
@@ -102,6 +107,25 @@ export async function ingestPaste(content: string, language: LanguageId = 'plain
     language,
     content,
     size: Buffer.byteLength(content, 'utf8'),
+  }
+  if (existing && existing.kind === 'paste') {
+    // Avoid name collisions
+    let rel = fileName
+    let n = 2
+    const used = new Set(existing.files.map((f) => f.relativePath))
+    while (used.has(rel)) {
+      const ext = path.extname(fileName)
+      const base = path.basename(fileName, ext)
+      rel = `${base}-${n}${ext}`
+      n += 1
+    }
+    file.relativePath = rel
+    file.path = rel
+    return {
+      ...existing,
+      files: [...existing.files, file],
+      name: existing.files.length ? `pastes (${existing.files.length + 1})` : rel,
+    }
   }
   return {
     id: randomUUID(),

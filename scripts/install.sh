@@ -43,17 +43,12 @@ npm install
 
 if [[ ! -f .env ]]; then
   cp .env.example .env
-  echo "==> Created .env (edit for API keys; Mock works with none)"
+  echo "==> Created .env (optional API key fallbacks)"
 fi
-
-echo "==> Detect Cursor / agent CLIs"
-for b in cursor cursor-agent claude codex; do
-  if command -v "$b" >/dev/null 2>&1; then echo "  $b: $(command -v "$b")"; else echo "  $b: not found"; fi
-done
 
 echo "==> Smoke test"
 npm run smoke
 
 echo "==> Launching app (Electron). UI: http://127.0.0.1:43127"
-echo "    Models & keys → choose Cursor CLI (if installed) or paste API keys / keep Mock."
+echo "    On first launch, add an API key under Models & keys, then select a model."
 npm run dev

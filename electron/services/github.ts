@@ -45,7 +45,7 @@ export async function cloneGithubRepo(req: CloneRequest): Promise<FolderIngestRe
     const message = err instanceof Error ? err.message : String(err)
     if (/Authentication failed|could not read Username|403|401/i.test(message)) {
       throw new Error(
-        'Clone failed: authentication required. Add a GitHub token in Settings for private repositories.',
+        'Clone failed: authentication required. Paste a GitHub token on the Clone screen for private repositories.',
       )
     }
     throw new Error(`Clone failed: ${message}`)
@@ -55,5 +55,10 @@ export async function cloneGithubRepo(req: CloneRequest): Promise<FolderIngestRe
   const result = await ingestFolder(target, name)
   result.workspace.kind = 'github'
   result.workspace.githubUrl = source.replace(/\.git$/, '')
+  // Nest all paths under the repo folder name for the tree UI
+  result.workspace.files = result.workspace.files.map((f) => ({
+    ...f,
+    relativePath: `${name}/${f.relativePath}`.replace(/\/+/g, '/'),
+  }))
   return result
 }

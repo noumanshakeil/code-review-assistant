@@ -44,40 +44,14 @@ export interface WorkspaceSnapshot {
   githubUrl?: string
 }
 
-export type ProviderId =
-  | 'openai'
-  | 'anthropic'
-  | 'deepseek'
-  | 'google'
-  | 'mistral'
-  | 'groq'
-  | 'ollama'
-  | 'llamacpp'
-  | 'mock'
-  | 'cursor-cli'
-  | 'claude-code'
-  | 'codex'
-
-export type GpuBackend = 'auto' | 'cuda' | 'vulkan' | 'cpu'
-
-export interface LocalModelSettings {
-  backend: GpuBackend
-  gpuLayers: number
-  cpuThreads: number
-  contextSize: number
-  maxConcurrent: number
-  modelPath: string
-  llamaCppBin: string
-  ollamaBaseUrl: string
-  ollamaModel: string
-}
+/** Providers shown in the UI (API-key based only). */
+export type ProviderId = 'openai' | 'anthropic' | 'deepseek' | 'google' | 'mistral' | 'groq'
 
 export interface ProviderSettings {
   activeProvider: ProviderId
   model: string
   temperature: number
   maxTokens: number
-  local: LocalModelSettings
 }
 
 export interface StoredSecrets {
@@ -88,14 +62,6 @@ export interface StoredSecrets {
   mistral?: string
   groq?: string
   github?: string
-}
-
-export interface AgentCliStatus {
-  id: 'cursor-cli' | 'claude-code' | 'codex'
-  name: string
-  available: boolean
-  path?: string
-  version?: string
 }
 
 export type AppMode = 'ingest' | 'github' | 'humanize' | 'mutate' | 'review'
@@ -112,21 +78,26 @@ export interface ReviewFinding {
 
 export interface ReviewResult {
   id: string
+  fileId: string
+  filePath: string
   summary: string
   findings: ReviewFinding[]
   provider: ProviderId
   model: string
   createdAt: string
+  error?: string
 }
 
 export interface HumanizeResult {
   id: string
+  fileId: string
   filePath: string
   original: string
   humanized: string
   notes: string[]
   provider: ProviderId
   model: string
+  error?: string
 }
 
 export type MutationKind = 'write' | 'edit' | 'delete'
@@ -172,3 +143,14 @@ export interface FolderIngestResult {
   workspace: WorkspaceSnapshot
   skipped: string[]
 }
+
+export const API_PROVIDERS: { id: ProviderId; label: string }[] = [
+  { id: 'openai', label: 'OpenAI' },
+  { id: 'anthropic', label: 'Anthropic' },
+  { id: 'deepseek', label: 'DeepSeek' },
+  { id: 'google', label: 'Google Gemini' },
+  { id: 'mistral', label: 'Mistral' },
+  { id: 'groq', label: 'Groq' },
+]
+
+export const MAX_SELECTED_FILES = 5

@@ -1,109 +1,51 @@
-import { getPreferences, getSecret, providerNeedsKey } from './secure-store'
-import { invokeAgentCli } from './agent-cli'
-import { runLocalInference } from './local-model'
+import { getPreferences, getSecret } from './secure-store'
 import type { LlmMessage, LlmRequest, LlmResponse, ProviderId, StoredSecrets } from '../../src/shared/types'
 
-const PROVIDER_DEFAULTS: Record<string, { baseUrl: string; model: string; keyField?: keyof StoredSecrets }> = {
-  openai: { baseUrl: 'https://api.openai.com/v1', model: 'gpt-4o-mini', keyField: 'openai' },
-  anthropic: { baseUrl: 'https://api.anthropic.com/v1', model: 'claude-sonnet-4-20250514', keyField: 'anthropic' },
-  deepseek: { baseUrl: 'https://api.deepseek.com/v1', model: 'deepseek-chat', keyField: 'deepseek' },
-  google: { baseUrl: 'https://generativelanguage.googleapis.com/v1beta', model: 'gemini-2.0-flash', keyField: 'google' },
-  mistral: { baseUrl: 'https://api.mistral.ai/v1', model: 'mistral-small-latest', keyField: 'mistral' },
-  groq: { baseUrl: 'https://api.groq.com/openai/v1', model: 'llama-3.3-70b-versatile', keyField: 'groq' },
-}
-
-function mockComplete(messages: LlmMessage[]): string {
-  const user = [...messages].reverse().find((m) => m.role === 'user')?.content || ''
-  const blob = messages.map((m) => m.content).join('\n')
-  const isHumanize = /humaniz/i.test(blob)
-  const isMutate = /propose file mutations|write\/edit\/delete|mutations:\s*\[/i.test(blob)
-  const isWritingReview = /writing \/ content review|natural-language|plaintext/i.test(blob)
-  const isReview = /code review|find bugs|security|Perform a review/i.test(blob)
-
-  if (isHumanize) {
-    const fenced = user.match(/```[\w]*\n?([\s\S]*?)```/)
-    const dashed = user.match(/---\n([\s\S]*?)\n---/)
-    const source = (fenced?.[1] || dashed?.[1] || user).trim()
-    const humanized = source
-      .replace(/\bgetUserData\b/g, 'loadProfile')
-      .replace(/\bfetchData\b/g, 'pullRecords')
-      .replace(/\bprocessItem\b/g, 'handleRow')
-      .replace(/\bconst\s+([A-Z][A-Z0-9_]+)\b/g, (_m: string, name: string) => `const ${name.toLowerCase()}`)
-      .replace(/\/\/\s*TODO:.*/g, '')
-      .replace(/\butilize\b/gi, 'use')
-      .replace(/\bleverage\b/gi, 'use')
-      .replace(/\brobust\b/gi, 'solid')
-      .trim()
-    return JSON.stringify({
-      humanized: humanized || '// humanized snippet\nfunction loadProfile(id) {\n  return store.find(id);\n}\n',
-      notes: [
-        'Renamed generic AI-style identifiers / buzzwords.',
-        'Tightened phrasing while keeping meaning.',
-        'Behavior or facts preserved for the demonstrated transforms.',
-      ],
-    })
-  }
-
-  if (isMutate) {
-    return JSON.stringify({
-      mutations: [
-        {
-          kind: 'edit',
-          path: 'snippet',
-          rationale: 'Add a guard for empty input before processing.',
-          after: '// proposed edit — confirm before apply\nif (!input) return null;\n',
-        },
-      ],
-    })
-  }
-
-  if (isWritingReview) {
-    return JSON.stringify({
-      summary:
-        'Writing review of your pasted plaintext. The text was received successfully — focusing on clarity, tone, and structure.',
-      findings: [
-        {
-          severity: 'medium',
-          file: 'snippet.txt',
-          line: 1,
-          title: 'Tighten promotional phrasing',
-          detail: 'Several clauses read like generic marketing copy and can be more specific.',
-          suggestion: 'Replace vague claims with one concrete detail or example.',
-        },
-        {
-          severity: 'low',
-          file: 'snippet.txt',
-          title: 'Vary sentence rhythm',
-          detail: 'Sentences are similar in length, which can feel AI-generated.',
-          suggestion: 'Mix a short punchy sentence with a longer explanatory one.',
-        },
-      ],
-    })
-  }
-
-  return JSON.stringify({
-    summary:
-      isReview
-        ? 'Mock review (no API key configured). Wire an OpenAI, Anthropic, DeepSeek, or local model key in Settings for live analysis.'
-        : 'Mock response. Configure a live provider in Settings for production analysis.',
-    findings: [
-      {
-        severity: 'medium',
-        file: 'ingested',
-        line: 1,
-        title: 'Add input validation',
-        detail: 'Public entry points should validate and normalize untrusted input.',
-        suggestion: 'Reject empty or oversized payloads early and return a typed error.',
-      },
-      {
-        severity: 'low',
-        file: 'ingested',
-        title: 'Document assumptions',
-        detail: 'Complex helpers lack short comments describing invariants.',
-        suggestion: 'Add one-line comments for non-obvious preconditions.',
-      },
+const PROVIDER_DEFAULTS: Record<
+  ProviderId,
+  { baseUrl: string; model: string; keyField: keyof StoredSecrets; fallbackModels: string[] }
+> = {
+  openai: {
+    baseUrl: 'https://api.openai.com/v1',
+    model: 'gpt-4o-mini',
+    keyField: 'openai',
+    fallbackModels: ['gpt-4o-mini', 'gpt-4o', 'gpt-4.1-mini', 'o4-mini'],
+  },
+  anthropic: {
+    baseUrl: 'https://api.anthropic.com/v1',
+    model: 'claude-sonnet-4-20250514',
+    keyField: 'anthropic',
+    fallbackModels: [
+      'claude-sonnet-4-20250514',
+      'claude-opus-4-20250514',
+      'claude-3-5-haiku-20241022',
+      'claude-3-5-sonnet-20241022',
     ],
-  })
+  },
+  deepseek: {
+    baseUrl: 'https://api.deepseek.com/v1',
+    model: 'deepseek-chat',
+    keyField: 'deepseek',
+    fallbackModels: ['deepseek-chat', 'deepseek-reasoner', 'deepseek-v4-pro'],
+  },
+  google: {
+    baseUrl: 'https://generativelanguage.googleapis.com/v1beta',
+    model: 'gemini-2.0-flash',
+    keyField: 'google',
+    fallbackModels: ['gemini-2.0-flash', 'gemini-2.0-flash-lite', 'gemini-1.5-pro', 'gemini-1.5-flash'],
+  },
+  mistral: {
+    baseUrl: 'https://api.mistral.ai/v1',
+    model: 'mistral-small-latest',
+    keyField: 'mistral',
+    fallbackModels: ['mistral-small-latest', 'mistral-medium-latest', 'mistral-large-latest', 'codestral-latest'],
+  },
+  groq: {
+    baseUrl: 'https://api.groq.com/openai/v1',
+    model: 'llama-3.3-70b-versatile',
+    keyField: 'groq',
+    fallbackModels: ['llama-3.3-70b-versatile', 'llama-3.1-8b-instant', 'mixtral-8x7b-32768', 'gemma2-9b-it'],
+  },
 }
 
 async function openAiCompatible(
@@ -216,56 +158,24 @@ async function googleComplete(
 export async function completeLlm(req: Partial<LlmRequest> & { messages: LlmMessage[] }): Promise<LlmResponse> {
   const prefs = getPreferences().provider
   const provider = (req.provider || prefs.activeProvider) as ProviderId
-  const model = req.model || prefs.model
+  const meta = PROVIDER_DEFAULTS[provider]
+  if (!meta) throw new Error(`Unsupported provider: ${provider}`)
+
+  const model = req.model || prefs.model || meta.model
   const temperature = req.temperature ?? prefs.temperature
   const maxTokens = req.maxTokens ?? prefs.maxTokens
-
-  if (provider === 'mock') {
-    return { content: mockComplete(req.messages), provider, model: 'mock-heuristic', mocked: true }
+  const apiKey = await getSecret(meta.keyField)
+  if (!apiKey) {
+    throw new Error(`Add your ${provider} API key in Models & keys before running AI features.`)
   }
 
-  if (provider === 'cursor-cli' || provider === 'claude-code' || provider === 'codex') {
-    return invokeAgentCli(provider, req.messages)
+  if (provider === 'anthropic') {
+    return anthropicComplete(apiKey, model, req.messages, temperature, maxTokens)
   }
-
-  if (provider === 'ollama') {
-    return runLocalInference('ollama', prefs.local, req.messages)
+  if (provider === 'google') {
+    return googleComplete(apiKey, model, req.messages, temperature, maxTokens)
   }
-  if (provider === 'llamacpp') {
-    return runLocalInference('llamacpp', prefs.local, req.messages)
-  }
-
-  if (providerNeedsKey(provider)) {
-    const meta = PROVIDER_DEFAULTS[provider]
-    const keyField = meta?.keyField
-    const apiKey = keyField ? await getSecret(keyField) : undefined
-    if (!apiKey) {
-      // Graceful mock fallback so the app stays usable without keys
-      return {
-        content: mockComplete(req.messages),
-        provider: 'mock',
-        model: 'mock-no-key',
-        mocked: true,
-      }
-    }
-    if (provider === 'anthropic') {
-      return anthropicComplete(apiKey, model || meta.model, req.messages, temperature, maxTokens)
-    }
-    if (provider === 'google') {
-      return googleComplete(apiKey, model || meta.model, req.messages, temperature, maxTokens)
-    }
-    return openAiCompatible(
-      provider,
-      meta.baseUrl,
-      apiKey,
-      model || meta.model,
-      req.messages,
-      temperature,
-      maxTokens,
-    )
-  }
-
-  throw new Error(`Unsupported provider: ${provider}`)
+  return openAiCompatible(provider, meta.baseUrl, apiKey, model, req.messages, temperature, maxTokens)
 }
 
 export function extractJson<T>(text: string): T {
@@ -277,4 +187,55 @@ export function extractJson<T>(text: string): T {
     return JSON.parse(candidate.slice(start, end + 1)) as T
   }
   throw new Error('Model response did not contain JSON')
+}
+
+export async function listProviderModels(provider: ProviderId): Promise<string[]> {
+  const meta = PROVIDER_DEFAULTS[provider]
+  const apiKey = await getSecret(meta.keyField)
+  if (!apiKey) return meta.fallbackModels
+
+  try {
+    if (provider === 'anthropic') {
+      const res = await fetch('https://api.anthropic.com/v1/models', {
+        headers: {
+          'x-api-key': apiKey,
+          'anthropic-version': '2023-06-01',
+        },
+      })
+      if (!res.ok) return meta.fallbackModels
+      const data = (await res.json()) as { data?: { id: string }[] }
+      const ids = (data.data || []).map((m) => m.id).filter(Boolean)
+      return ids.length ? ids : meta.fallbackModels
+    }
+    if (provider === 'google') {
+      const res = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models?key=${encodeURIComponent(apiKey)}`,
+      )
+      if (!res.ok) return meta.fallbackModels
+      const data = (await res.json()) as { models?: { name: string }[] }
+      const ids = (data.models || [])
+        .map((m) => m.name.replace(/^models\//, ''))
+        .filter((id) => /gemini/i.test(id))
+      return ids.length ? ids : meta.fallbackModels
+    }
+    const res = await fetch(`${meta.baseUrl.replace(/\/$/, '')}/models`, {
+      headers: { Authorization: `Bearer ${apiKey}` },
+    })
+    if (!res.ok) return meta.fallbackModels
+    const data = (await res.json()) as { data?: { id: string }[] }
+    let ids = (data.data || []).map((m) => m.id).filter(Boolean)
+    if (provider === 'openai') {
+      ids = ids.filter((id) => /^(gpt-|o\d|chatgpt)/i.test(id))
+    }
+    if (provider === 'deepseek') {
+      ids = ids.filter((id) => /deepseek/i.test(id))
+    }
+    return ids.length ? ids.sort() : meta.fallbackModels
+  } catch {
+    return meta.fallbackModels
+  }
+}
+
+export function defaultModelFor(provider: ProviderId): string {
+  return PROVIDER_DEFAULTS[provider].model
 }

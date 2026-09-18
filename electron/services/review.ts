@@ -10,159 +10,195 @@ import type {
   WorkspaceSnapshot,
 } from '../../src/shared/types'
 
-function packFiles(files: CodeFile[], limit = 40_000): string {
-  let used = 0
-  const parts: string[] = []
-  for (const f of files) {
-    const chunk = `--- ${f.relativePath} (${f.language}) ---\n${f.content}\n`
-    if (used + chunk.length > limit) break
-    parts.push(chunk)
-    used += chunk.length
+const FILE_CONCURRENCY = 3
+
+async function mapPool<T, R>(items: T[], limit: number, fn: (item: T) => Promise<R>): Promise<R[]> {
+  const results: R[] = new Array(items.length)
+  let next = 0
+  async function worker() {
+    while (next < items.length) {
+      const i = next++
+      results[i] = await fn(items[i])
+    }
   }
-  return parts.join('\n')
+  const workers = Array.from({ length: Math.min(limit, items.length) || 1 }, () => worker())
+  await Promise.all(workers)
+  return results
 }
 
-function isProseHeavy(workspace: WorkspaceSnapshot): boolean {
-  const files = workspace.files
-  if (files.length === 0) return false
+function isProseFile(file: CodeFile): boolean {
   const proseLangs = new Set<LanguageId>(['plaintext', 'markdown', 'html'])
-  const proseCount = files.filter((f) => proseLangs.has(f.language)).length
-  if (proseCount === files.length) return true
-  // Heuristic: little code punctuation relative to letters
-  const sample = files.map((f) => f.content).join('\n').slice(0, 4000)
+  if (proseLangs.has(file.language)) return true
+  const sample = file.content.slice(0, 4000)
   const codey = (sample.match(/[{};=<>]|function\s|def\s|class\s|import\s|#include/g) || []).length
   const words = (sample.match(/[A-Za-z]{3,}/g) || []).length
   return words > 40 && codey < 3
 }
 
-export async function runCodeReview(workspace: WorkspaceSnapshot): Promise<ReviewResult> {
-  const packed = packFiles(workspace.files)
-  const prose = isProseHeavy(workspace)
-  const response = await completeLlm({
-    messages: [
-      {
-        role: 'system',
-        content: prose
-          ? `You are an expert editor reviewing natural-language / plaintext / markdown content (not source code).
-The user intentionally pasted prose — NEVER say there is "no code to review" or that nothing was pasted.
+export async function runFileReview(file: CodeFile): Promise<ReviewResult> {
+  const prose = isProseFile(file)
+  try {
+    const response = await completeLlm({
+      messages: [
+        {
+          role: 'system',
+          content: prose
+            ? `You are an expert editor reviewing natural-language content.
+NEVER say there is "no code to review" or that nothing was pasted.
 Return ONLY JSON with keys summary (string) and findings (array of {severity,file,line?,title,detail,suggestion?}).
 Severities: critical|high|medium|low|info.
-Cover clarity, tone, grammar, structure, persuasiveness, factuality risks, and AI-sounding phrasing. Be concrete and quote short phrases when helpful.`
-          : `You are a senior code review assistant.
-If a file is clearly natural-language prose (plaintext/markdown with no code), review it as writing (clarity, tone, structure) instead of claiming there is nothing to review.
+Cover clarity, tone, grammar, structure, and AI-sounding phrasing.`
+            : `You are a senior code review assistant.
+If the file is prose, review writing quality instead of claiming there is nothing to review.
 Return ONLY JSON with keys summary (string) and findings (array of {severity,file,line?,title,detail,suggestion?}).
-Severities: critical|high|medium|low|info. Be concrete and actionable.`,
-      },
-      {
-        role: 'user',
-        content: prose
-          ? `Perform a writing / content review for workspace "${workspace.name}" (${workspace.files.length} file(s)). The content was pasted on purpose.\n\n${packed}`
-          : `Perform a review for workspace "${workspace.name}" (${workspace.files.length} files).\n\n${packed}`,
-      },
-    ],
-  })
-
-  let parsed: { summary: string; findings: Omit<ReviewFinding, 'id'>[] }
-  try {
-    parsed = extractJson(response.content)
-  } catch {
-    parsed = {
-      summary: response.content.slice(0, 1200) || 'Review completed.',
-      findings: [],
-    }
-  }
-
-  // Soft-rewrite unhelpful "no code" dismissals if the model still does that
-  if (
-    prose &&
-    /no code|does not contain any source code|nothing was pasted|no programming constructs/i.test(parsed.summary)
-  ) {
-    parsed.summary =
-      'Writing review of your pasted plaintext. Focus on clarity, tone, and structure rather than code defects.'
-  }
-  if (prose) {
-    parsed.findings = (parsed.findings || []).filter(
-      (f) => !/no code to review|does not contain any source code/i.test(`${f.title} ${f.detail}`),
-    )
-    if (parsed.findings.length === 0) {
-      parsed.findings = [
-        {
-          severity: 'info',
-          file: workspace.files[0]?.relativePath || 'snippet',
-          line: 1,
-          title: 'Content received — review as prose',
-          detail:
-            'Your paste was ingested successfully. Ask the model again or switch provider if findings are empty; the workspace contains plaintext for writing review.',
-          suggestion: 'Re-run Review, or use Humanize to rewrite the prose in a more natural voice.',
+Severities: critical|high|medium|low|info.`,
         },
-      ]
-    }
-  }
+        {
+          role: 'user',
+          content: prose
+            ? `Writing review for ${file.relativePath}:\n\n${file.content}`
+            : `Code review for ${file.relativePath} (${file.language}):\n\n\`\`\`${file.language}\n${file.content}\n\`\`\``,
+        },
+      ],
+    })
 
-  return {
-    id: randomUUID(),
-    summary: parsed.summary,
-    findings: (parsed.findings || []).map((f) => ({ ...f, id: randomUUID() })),
-    provider: response.provider,
-    model: response.model,
-    createdAt: new Date().toISOString(),
+    let parsed: { summary: string; findings: Omit<ReviewFinding, 'id'>[] }
+    try {
+      parsed = extractJson(response.content)
+    } catch {
+      parsed = { summary: response.content.slice(0, 1200) || 'Review completed.', findings: [] }
+    }
+
+    return {
+      id: randomUUID(),
+      fileId: file.id,
+      filePath: file.relativePath,
+      summary: parsed.summary,
+      findings: (parsed.findings || []).map((f) => ({
+        ...f,
+        id: randomUUID(),
+        file: f.file || file.relativePath,
+      })),
+      provider: response.provider,
+      model: response.model,
+      createdAt: new Date().toISOString(),
+    }
+  } catch (err) {
+    return {
+      id: randomUUID(),
+      fileId: file.id,
+      filePath: file.relativePath,
+      summary: '',
+      findings: [],
+      provider: 'openai',
+      model: '',
+      createdAt: new Date().toISOString(),
+      error: err instanceof Error ? err.message : String(err),
+    }
   }
 }
 
+export async function runCodeReview(workspace: WorkspaceSnapshot): Promise<ReviewResult> {
+  const file = workspace.files[0]
+  if (!file) {
+    return {
+      id: randomUUID(),
+      fileId: '',
+      filePath: '',
+      summary: 'No files to review.',
+      findings: [],
+      provider: 'openai',
+      model: '',
+      createdAt: new Date().toISOString(),
+      error: 'No files',
+    }
+  }
+  return runFileReview(file)
+}
+
+export async function runReviewsForFiles(files: CodeFile[]): Promise<ReviewResult[]> {
+  return mapPool(files, FILE_CONCURRENCY, (f) => runFileReview(f))
+}
+
 export async function runHumanize(file: CodeFile): Promise<HumanizeResult> {
-  const prose = file.language === 'plaintext' || file.language === 'markdown' || file.language === 'html'
-  const response = await completeLlm({
-    messages: [
-      {
-        role: 'system',
-        content: prose
-          ? `You rewrite natural-language text so it sounds more human and less AI-generated, while keeping the same meaning and facts.
-Vary sentence length, prefer concrete wording, avoid buzzword stacks and generic marketing filler.
-Return ONLY JSON: { humanized: string, notes: string[] }.`
-          : `You humanize source code to reduce common AI-detection heuristics while preserving behavior. Rename overly generic identifiers, vary sentence-like comments, simplify verbose helpers, keep semantics equivalent. Return ONLY JSON: { humanized: string, notes: string[] }.`,
-      },
-      {
-        role: 'user',
-        content: prose
-          ? `Humanize this ${file.language} writing (${file.relativePath}). Do not claim the input is empty.\n\n---\n${file.content}\n---`
-          : `Humanize this ${file.language} file (${file.relativePath}):\n\n\`\`\`${file.language}\n${file.content}\n\`\`\``,
-      },
-    ],
-  })
-
-  let parsed: { humanized: string; notes: string[] }
+  const prose = isProseFile(file)
   try {
-    parsed = extractJson(response.content)
-  } catch {
-    parsed = { humanized: response.content, notes: ['Returned raw model text'] }
-  }
+    const response = await completeLlm({
+      messages: [
+        {
+          role: 'system',
+          content: prose
+            ? `Rewrite natural-language text so it sounds more human and less AI-generated, keeping the same meaning.
+Return ONLY JSON: { humanized: string, notes: string[] }.`
+            : `Humanize source code to reduce common AI-detection heuristics while preserving behavior.
+Return ONLY JSON: { humanized: string, notes: string[] }.`,
+        },
+        {
+          role: 'user',
+          content: prose
+            ? `Humanize this writing (${file.relativePath}):\n\n---\n${file.content}\n---`
+            : `Humanize this ${file.language} file (${file.relativePath}):\n\n\`\`\`${file.language}\n${file.content}\n\`\`\``,
+        },
+      ],
+    })
 
-  return {
-    id: randomUUID(),
-    filePath: file.relativePath,
-    original: file.content,
-    humanized: parsed.humanized,
-    notes: parsed.notes || [],
-    provider: response.provider,
-    model: response.model,
+    let parsed: { humanized: string; notes: string[] }
+    try {
+      parsed = extractJson(response.content)
+    } catch {
+      parsed = { humanized: response.content, notes: ['Returned raw model text'] }
+    }
+
+    return {
+      id: randomUUID(),
+      fileId: file.id,
+      filePath: file.relativePath,
+      original: file.content,
+      humanized: parsed.humanized,
+      notes: parsed.notes || [],
+      provider: response.provider,
+      model: response.model,
+    }
+  } catch (err) {
+    return {
+      id: randomUUID(),
+      fileId: file.id,
+      filePath: file.relativePath,
+      original: file.content,
+      humanized: file.content,
+      notes: [],
+      provider: 'openai',
+      model: '',
+      error: err instanceof Error ? err.message : String(err),
+    }
   }
+}
+
+export async function runHumanizeForFiles(files: CodeFile[]): Promise<HumanizeResult[]> {
+  return mapPool(files, FILE_CONCURRENCY, (f) => runHumanize(f))
 }
 
 export async function proposeMutations(
   workspace: WorkspaceSnapshot,
   instruction: string,
+  files?: CodeFile[],
 ): Promise<ProposedMutation[]> {
-  const packed = packFiles(workspace.files, 30_000)
+  const target = files?.length ? files : workspace.files.slice(0, 5)
+  const packed = target
+    .map((f) => `--- ${f.relativePath} (${f.language}) ---\n${f.content}`)
+    .join('\n\n')
+    .slice(0, 30_000)
+
   const response = await completeLlm({
     messages: [
       {
         role: 'system',
         content:
-          'You propose file mutations for a coding assistant. Never claim changes were applied. Return ONLY JSON: { mutations: [{ kind: "write"|"edit"|"delete", path: string, after?: string, rationale: string }] }. Paths are workspace-relative. For delete, omit after. For write/edit, include full file contents in after.',
+          'You propose file mutations. Never claim changes were applied. Return ONLY JSON: { mutations: [{ kind: "write"|"edit"|"delete", path: string, after?: string, rationale: string }] }. Paths must match given relative paths. For write/edit include full file contents in after.',
       },
       {
         role: 'user',
-        content: `Workspace "${workspace.name}". User instruction:\n${instruction}\n\nFiles:\n${packed}`,
+        content: `Workspace "${workspace.name}". Instruction:\n${instruction}\n\nFiles:\n${packed}`,
       },
     ],
   })

@@ -1,10 +1,10 @@
-import { createHash, randomBytes, scryptSync, createCipheriv, createDecipheriv } from 'node:crypto'
-import { createRequire } from 'node:module'
-import { cpus, homedir } from 'node:os'
+import { homedir } from 'node:os'
+import { createCipheriv, createDecipheriv, randomBytes, scryptSync } from 'node:crypto'
 import path from 'node:path'
 import fs from 'node:fs'
+import { createRequire } from 'node:module'
 import Store from 'electron-store'
-import type { LocalModelSettings, ProviderId, ProviderSettings, StoredSecrets } from '../../src/shared/types'
+import type { ProviderId, ProviderSettings, StoredSecrets } from '../../src/shared/types'
 
 const SERVICE = 'code-review-assistant'
 const ACCOUNT = 'api-secrets'
@@ -14,35 +14,22 @@ const require = createRequire(import.meta.url)
 type Preferences = {
   provider: ProviderSettings
   theme: 'system' | 'light' | 'dark'
-  lastWorkspaceId?: string
-}
-
-const defaultLocal: LocalModelSettings = {
-  backend: 'auto',
-  gpuLayers: 20,
-  cpuThreads: Math.max(2, Math.min(8, cpus().length - 1 || 2)),
-  contextSize: 4096,
-  maxConcurrent: 1,
-  modelPath: '',
-  llamaCppBin: process.env.LLAMA_CPP_BIN || '',
-  ollamaBaseUrl: process.env.OLLAMA_BASE_URL || 'http://127.0.0.1:11434',
-  ollamaModel: process.env.OLLAMA_MODEL || 'llama3.2',
+  setupComplete?: boolean
 }
 
 const defaults: Preferences = {
   provider: {
-    activeProvider: 'mock',
+    activeProvider: 'openai',
     model: 'gpt-4o-mini',
     temperature: 0.2,
     maxTokens: 4096,
-    local: defaultLocal,
   },
   theme: 'system',
+  setupComplete: false,
 }
 
 const store = new Store<Preferences>({
   name: 'preferences',
-  // electron-store types omit projectName; required when running outside Electron (smoke tests)
   ...({ projectName: 'code-review-assistant' } as object),
   defaults,
 })
@@ -88,7 +75,6 @@ type KeytarMod = {
 
 function tryKeytar(): KeytarMod | null {
   try {
-    // Runtime-only native load — keep the module id out of the Vite graph
     const id = ['key', 'tar'].join('')
     return require(id) as KeytarMod
   } catch {
@@ -110,7 +96,7 @@ export async function loadSecrets(): Promise<StoredSecrets> {
         return {}
       }
     } catch {
-      // OS keychain unavailable (headless / disabled dbus) — fall through to encrypted file
+      /* fall through */
     }
   }
   if (!fs.existsSync(fallbackSecretsPath)) return {}
@@ -140,7 +126,7 @@ export async function saveSecrets(secrets: StoredSecrets): Promise<void> {
       }
       return
     } catch {
-      // fall through to encrypted file vault
+      /* fall through */
     }
   }
   const dir = path.dirname(fallbackSecretsPath)
@@ -168,16 +154,32 @@ export async function getSecret(provider: keyof StoredSecrets): Promise<string |
 }
 
 export function getPreferences(): Preferences {
+  const provider = store.get('provider')
+  // Migrate legacy shapes
+  const normalized: ProviderSettings = {
+    activeProvider: (['openai', 'anthropic', 'deepseek', 'google', 'mistral', 'groq'].includes(
+      provider?.activeProvider as string,
+    )
+      ? provider.activeProvider
+      : 'openai') as ProviderId,
+    model: provider?.model || 'gpt-4o-mini',
+    temperature: provider?.temperature ?? 0.2,
+    maxTokens: provider?.maxTokens ?? 4096,
+  }
   return {
-    provider: store.get('provider'),
-    theme: store.get('theme'),
-    lastWorkspaceId: store.get('lastWorkspaceId'),
+    provider: normalized,
+    theme: store.get('theme') || 'system',
+    setupComplete: store.get('setupComplete') ?? false,
   }
 }
 
 export function setProviderSettings(settings: ProviderSettings): ProviderSettings {
   store.set('provider', settings)
   return settings
+}
+
+export function setSetupComplete(done: boolean): void {
+  store.set('setupComplete', done)
 }
 
 export function setTheme(theme: Preferences['theme']): void {
@@ -192,10 +194,7 @@ export function secretsFingerprint(secrets: StoredSecrets): Record<string, boole
   return out
 }
 
-export function hashValue(value: string): string {
-  return createHash('sha256').update(value).digest('hex').slice(0, 12)
-}
-
-export function providerNeedsKey(provider: ProviderId): boolean {
-  return ['openai', 'anthropic', 'deepseek', 'google', 'mistral', 'groq'].includes(provider)
+export async function hasAnyApiKey(): Promise<boolean> {
+  const s = await loadSecrets()
+  return Boolean(s.openai || s.anthropic || s.deepseek || s.google || s.mistral || s.groq)
 }
