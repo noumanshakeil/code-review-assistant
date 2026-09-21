@@ -821,9 +821,9 @@ export default function App() {
               </Button>
             </div>
             <div className="border-t border-[var(--border)] pt-3 text-xs text-[var(--muted)]">
-              Privacy: API keys and GitHub tokens are stored locally via the OS keychain (or an
-              encrypted file fallback). Nothing is sent to PocketMind servers. AI features call only
-              the provider you choose. Full policy:{' '}
+              Privacy: API keys and GitHub tokens are stored locally in an encrypted file under the
+              app data folder. Nothing is sent to PocketMind servers. AI features call only the
+              provider you choose. Full policy:{' '}
               <button
                 type="button"
                 className="underline hover:text-[var(--fg)]"

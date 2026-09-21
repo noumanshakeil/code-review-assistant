@@ -1,14 +1,11 @@
+import { createRequire } from 'node:module'
 import { homedir } from 'node:os'
 import { createCipheriv, createDecipheriv, randomBytes, scryptSync } from 'node:crypto'
 import path from 'node:path'
 import fs from 'node:fs'
-import { createRequire } from 'node:module'
 import Store from 'electron-store'
 import type { ProviderId, ProviderSettings, StoredSecrets } from '../../src/shared/types'
 
-const SERVICE = 'code-review-assistant'
-const ACCOUNT = 'api-secrets'
-const MACHINE_KEY_FILE = path.join(homedir(), '.code-review-assistant', 'machine.key')
 const require = createRequire(import.meta.url)
 
 type Preferences = {
@@ -28,21 +25,49 @@ const defaults: Preferences = {
   setupComplete: false,
 }
 
-const store = new Store<Preferences>({
-  name: 'preferences',
-  ...({ projectName: 'code-review-assistant' } as object),
-  defaults,
-})
+/** Lazily created after Electron app is available — avoids Store crash before ready. */
+let prefsStore: Store<Preferences> | null = null
+
+function dataDir(): string {
+  // Prefer Electron userData (correct inside Microsoft Store AppX). Fall back for Node smoke tests.
+  try {
+    const electron = require('electron') as { app?: { getPath: (name: string) => string } }
+    if (electron.app?.getPath) return electron.app.getPath('userData')
+  } catch {
+    /* running outside Electron */
+  }
+  return path.join(homedir(), '.pocketmind-ai-reviewer')
+}
+
+function getPrefsStore(): Store<Preferences> {
+  if (!prefsStore) {
+    prefsStore = new Store<Preferences>({
+      name: 'preferences',
+      cwd: dataDir(),
+      defaults,
+    })
+  }
+  return prefsStore
+}
+
+function machineKeyPath(): string {
+  return path.join(dataDir(), 'machine.key')
+}
+
+function secretsPath(): string {
+  return path.join(dataDir(), 'secrets.enc')
+}
 
 function ensureMachineKey(): Buffer {
-  const dir = path.dirname(MACHINE_KEY_FILE)
+  const file = machineKeyPath()
+  const dir = path.dirname(file)
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true })
-  if (!fs.existsSync(MACHINE_KEY_FILE)) {
+  if (!fs.existsSync(file)) {
     const key = randomBytes(32)
-    fs.writeFileSync(MACHINE_KEY_FILE, key, { mode: 0o600 })
+    fs.writeFileSync(file, key, { mode: 0o600 })
     return key
   }
-  return fs.readFileSync(MACHINE_KEY_FILE)
+  return fs.readFileSync(file)
 }
 
 function encryptJson(value: unknown): string {
@@ -67,41 +92,11 @@ function decryptJson<T>(payload: string): T {
   return JSON.parse(dec.toString('utf8')) as T
 }
 
-type KeytarMod = {
-  getPassword: (service: string, account: string) => Promise<string | null>
-  setPassword: (service: string, account: string, password: string) => Promise<void>
-  deletePassword: (service: string, account: string) => Promise<boolean>
-}
-
-function tryKeytar(): KeytarMod | null {
-  try {
-    const id = ['key', 'tar'].join('')
-    return require(id) as KeytarMod
-  } catch {
-    return null
-  }
-}
-
-const fallbackSecretsPath = path.join(homedir(), '.code-review-assistant', 'secrets.enc')
-
 export async function loadSecrets(): Promise<StoredSecrets> {
-  const keytar = tryKeytar()
-  if (keytar) {
-    try {
-      const raw = await keytar.getPassword(SERVICE, ACCOUNT)
-      if (!raw) return {}
-      try {
-        return JSON.parse(raw) as StoredSecrets
-      } catch {
-        return {}
-      }
-    } catch {
-      /* fall through */
-    }
-  }
-  if (!fs.existsSync(fallbackSecretsPath)) return {}
+  const file = secretsPath()
+  if (!fs.existsSync(file)) return {}
   try {
-    return decryptJson<StoredSecrets>(fs.readFileSync(fallbackSecretsPath, 'utf8'))
+    return decryptJson<StoredSecrets>(fs.readFileSync(file, 'utf8'))
   } catch {
     return {}
   }
@@ -112,30 +107,14 @@ export async function saveSecrets(secrets: StoredSecrets): Promise<void> {
   for (const [k, v] of Object.entries(secrets) as [keyof StoredSecrets, string | undefined][]) {
     if (v && v.trim()) cleaned[k] = v.trim()
   }
-  const keytar = tryKeytar()
-  if (keytar) {
-    try {
-      if (Object.keys(cleaned).length === 0) {
-        try {
-          await keytar.deletePassword(SERVICE, ACCOUNT)
-        } catch {
-          /* empty */
-        }
-      } else {
-        await keytar.setPassword(SERVICE, ACCOUNT, JSON.stringify(cleaned))
-      }
-      return
-    } catch {
-      /* fall through */
-    }
-  }
-  const dir = path.dirname(fallbackSecretsPath)
+  const file = secretsPath()
+  const dir = path.dirname(file)
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true })
   if (Object.keys(cleaned).length === 0) {
-    if (fs.existsSync(fallbackSecretsPath)) fs.unlinkSync(fallbackSecretsPath)
+    if (fs.existsSync(file)) fs.unlinkSync(file)
     return
   }
-  fs.writeFileSync(fallbackSecretsPath, encryptJson(cleaned), { mode: 0o600 })
+  fs.writeFileSync(file, encryptJson(cleaned), { mode: 0o600 })
 }
 
 export async function getSecret(provider: keyof StoredSecrets): Promise<string | undefined> {
@@ -154,8 +133,8 @@ export async function getSecret(provider: keyof StoredSecrets): Promise<string |
 }
 
 export function getPreferences(): Preferences {
+  const store = getPrefsStore()
   const provider = store.get('provider')
-  // Migrate legacy shapes
   const normalized: ProviderSettings = {
     activeProvider: (['openai', 'anthropic', 'deepseek', 'google', 'mistral', 'groq'].includes(
       provider?.activeProvider as string,
@@ -174,16 +153,16 @@ export function getPreferences(): Preferences {
 }
 
 export function setProviderSettings(settings: ProviderSettings): ProviderSettings {
-  store.set('provider', settings)
+  getPrefsStore().set('provider', settings)
   return settings
 }
 
 export function setSetupComplete(done: boolean): void {
-  store.set('setupComplete', done)
+  getPrefsStore().set('setupComplete', done)
 }
 
 export function setTheme(theme: Preferences['theme']): void {
-  store.set('theme', theme)
+  getPrefsStore().set('theme', theme)
 }
 
 export function secretsFingerprint(secrets: StoredSecrets): Record<string, boolean> {

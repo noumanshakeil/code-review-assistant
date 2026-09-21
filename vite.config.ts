@@ -18,15 +18,9 @@ export default defineConfig({
           build: {
             outDir: 'dist-electron',
             rollupOptions: {
-              external: [
-                'electron',
-                'electron-store',
-                'keytar',
-                'simple-git',
-                'fast-glob',
-                'ignore',
-                /^node:/,
-              ],
+              // Bundle all JS deps into main.js so AppX does not need node_modules at runtime.
+              // Native modules must never be required at boot (keytar removed).
+              external: ['electron', /^node:/],
             },
           },
         },

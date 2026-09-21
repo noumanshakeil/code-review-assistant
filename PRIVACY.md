@@ -15,7 +15,7 @@ Code Review Assistant is a desktop app. It does **not** operate PocketMind cloud
 - Optional GitHub token for private repository clones
 - Provider / model preferences
 
-Keys are stored with the operating system keychain when available, otherwise in an encrypted local file under your user profile (`~/.code-review-assistant/` on supported systems).
+Keys are stored in an encrypted local file under the app’s user data folder on your device.
 
 ## Data sent over the network
 

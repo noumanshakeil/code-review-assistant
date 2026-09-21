@@ -1,7 +1,6 @@
 import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron'
 import path from 'node:path'
 import fs from 'node:fs'
-import { fileURLToPath } from 'node:url'
 import { cloneGithubRepo } from './services/github'
 import { ingestFolder, ingestPaste } from './services/ingest'
 import { completeLlm, defaultModelFor, listProviderModels } from './services/llm'
@@ -30,22 +29,31 @@ import type {
   WorkspaceSnapshot,
 } from '../src/shared/types'
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url))
-
-process.env.APP_ROOT = path.join(__dirname, '..')
 const VITE_DEV_SERVER_URL = process.env.VITE_DEV_SERVER_URL
-const RENDERER_DIST = path.join(process.env.APP_ROOT, 'dist')
 
 let mainWindow: BrowserWindow | null = null
 let currentWorkspace: WorkspaceSnapshot | null = null
 
+/** Resolve paths from Electron app root (works in asar + Store AppX). */
+function appRoot(): string {
+  return app.getAppPath()
+}
+
 function resolvePreload(): string {
-  const candidates = ['preload.cjs', 'preload.js', 'preload.mjs']
-  for (const name of candidates) {
-    const full = path.join(__dirname, name)
+  const root = appRoot()
+  const candidates = [
+    path.join(root, 'dist-electron', 'preload.cjs'),
+    path.join(root, 'dist-electron', 'preload.js'),
+    path.join(root, 'dist-electron', 'preload.mjs'),
+  ]
+  for (const full of candidates) {
     if (fs.existsSync(full)) return full
   }
-  return path.join(__dirname, 'preload.cjs')
+  return candidates[0]
+}
+
+function resolveRendererIndex(): string {
+  return path.join(appRoot(), 'dist', 'index.html')
 }
 
 function createWindow() {
@@ -56,6 +64,7 @@ function createWindow() {
     minHeight: 640,
     title: 'PocketMind AI: Reviewer And Humanizer',
     backgroundColor: '#0f1419',
+    show: false,
     webPreferences: {
       preload: resolvePreload(),
       contextIsolation: true,
@@ -64,15 +73,35 @@ function createWindow() {
     },
   })
 
+  mainWindow.once('ready-to-show', () => {
+    mainWindow?.show()
+  })
+
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
-    shell.openExternal(url)
+    void shell.openExternal(url)
     return { action: 'deny' }
   })
 
+  mainWindow.webContents.on('did-fail-load', (_e, code, desc, url) => {
+    console.error('did-fail-load', code, desc, url)
+    dialog.showErrorBox(
+      'Failed to load UI',
+      `The app window failed to load.\n\n${desc}\nURL: ${url}\nCode: ${code}`,
+    )
+  })
+
   if (VITE_DEV_SERVER_URL) {
-    mainWindow.loadURL(VITE_DEV_SERVER_URL)
+    void mainWindow.loadURL(VITE_DEV_SERVER_URL)
   } else {
-    mainWindow.loadFile(path.join(RENDERER_DIST, 'index.html'))
+    const indexHtml = resolveRendererIndex()
+    if (!fs.existsSync(indexHtml)) {
+      dialog.showErrorBox(
+        'Missing UI files',
+        `Could not find the app UI at:\n${indexHtml}\n\nPlease reinstall the application.`,
+      )
+      return
+    }
+    void mainWindow.loadFile(indexHtml)
   }
 }
 
@@ -126,7 +155,6 @@ function registerIpc() {
 
   ipcMain.handle('ingest:folder', async (_e, folderPath: string) => {
     const result = await ingestFolder(folderPath)
-    // Prefix with folder basename for a clear root in the tree
     const rootName = result.workspace.name
     result.workspace.files = result.workspace.files.map((f) => ({
       ...f,
@@ -254,13 +282,35 @@ function registerIpc() {
   })
 }
 
-app.whenReady().then(() => {
-  registerIpc()
-  createWindow()
-  app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) createWindow()
-  })
+function boot() {
+  try {
+    registerIpc()
+    createWindow()
+    app.on('activate', () => {
+      if (BrowserWindow.getAllWindows().length === 0) createWindow()
+    })
+  } catch (err) {
+    const message = err instanceof Error ? err.stack || err.message : String(err)
+    console.error('boot failed', message)
+    dialog.showErrorBox('PocketMind failed to start', message)
+    app.quit()
+  }
+}
+
+// Prevent silent hard crashes during Store certification
+process.on('uncaughtException', (err) => {
+  console.error('uncaughtException', err)
+  try {
+    dialog.showErrorBox('Unexpected error', err?.stack || String(err))
+  } catch {
+    /* ignore */
+  }
 })
+process.on('unhandledRejection', (reason) => {
+  console.error('unhandledRejection', reason)
+})
+
+app.whenReady().then(boot)
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit()

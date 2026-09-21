@@ -4,6 +4,7 @@ copyright: Copyright (c) PocketMind
 directories:
   output: release
   buildResources: build
+# Main/preload JS deps are bundled into dist-electron. Only ship built output + package.json.
 files:
   - dist/**/*
   - dist-electron/**/*
@@ -39,7 +40,6 @@ nsis:
   installerIcon: build/icon.ico
   uninstallerIcon: build/icon.ico
 appx:
-  # Must match Partner Center reserved identity exactly
   identityName: PocketMind.PocketMindAIReviewerAndHumanizer
   publisher: CN=78BD2D1C-2460-451B-91FD-410288D37531
   publisherDisplayName: PocketMind
