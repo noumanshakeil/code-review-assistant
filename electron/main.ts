@@ -61,15 +61,14 @@ function hardenWindowsLaunch() {
   } catch (err) {
     console.error('setAppUserModelId failed', err)
   }
+  // Software rendering avoids GPU-driver hard crashes in Store containers.
+  // Do NOT also force --disable-gpu / in-process-gpu — that combo can prevent
+  // Chromium from painting, so ready-to-show never fires and the window stays hidden.
   try {
     app.disableHardwareAcceleration()
   } catch (err) {
     console.error('disableHardwareAcceleration failed', err)
   }
-  // Extra switches help when the Store sandbox rejects GPU/process sandbox defaults.
-  app.commandLine.appendSwitch('disable-gpu')
-  app.commandLine.appendSwitch('disable-gpu-compositing')
-  app.commandLine.appendSwitch('in-process-gpu')
 }
 
 function resolveRendererIndex(): string {
@@ -93,9 +92,19 @@ function createWindow() {
     },
   })
 
-  mainWindow.once('ready-to-show', () => {
-    mainWindow?.show()
+  let shown = false
+  const reveal = () => {
+    if (shown || !mainWindow || mainWindow.isDestroyed()) return
+    shown = true
+    mainWindow.show()
+  }
+
+  mainWindow.once('ready-to-show', reveal)
+  // Fallback if compositor never paints (software GPU / Store sandbox).
+  mainWindow.webContents.once('did-finish-load', () => {
+    setTimeout(reveal, 250)
   })
+  setTimeout(reveal, 2500)
 
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
     void shell.openExternal(url)
@@ -104,6 +113,7 @@ function createWindow() {
 
   mainWindow.webContents.on('did-fail-load', (_e, code, desc, url) => {
     console.error('did-fail-load', code, desc, url)
+    reveal()
     dialog.showErrorBox(
       'Failed to load UI',
       `The app window failed to load.\n\n${desc}\nURL: ${url}\nCode: ${code}`,
@@ -115,6 +125,7 @@ function createWindow() {
   } else {
     const indexHtml = resolveRendererIndex()
     if (!fs.existsSync(indexHtml)) {
+      reveal()
       dialog.showErrorBox(
         'Missing UI files',
         `Could not find the app UI at:\n${indexHtml}\n\nPlease reinstall the application.`,
