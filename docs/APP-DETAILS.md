@@ -2,6 +2,8 @@
 
 Complete reference for the product, Store submission, packages, and every image asset.
 
+**Current package version for Store resubmission:** `1.0.2` (launch-crash fix)
+
 ---
 
 ## 1. Product overview
