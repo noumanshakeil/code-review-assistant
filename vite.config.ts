@@ -18,9 +18,35 @@ export default defineConfig({
           build: {
             outDir: 'dist-electron',
             rollupOptions: {
-              // Bundle all JS deps into main.js so AppX does not need node_modules at runtime.
+              // Bundle all JS deps into main.cjs so AppX does not need node_modules at runtime.
+              // Emit CommonJS — ESM-from-asar is a known Store/AppX launch failure mode on Windows.
               // Native modules must never be required at boot (keytar removed).
-              external: ['electron', /^node:/],
+              external: [
+                'electron',
+                /^node:/,
+                'assert',
+                'buffer',
+                'child_process',
+                'crypto',
+                'events',
+                'fs',
+                'fs/promises',
+                'http',
+                'https',
+                'os',
+                'path',
+                'stream',
+                'string_decoder',
+                'tty',
+                'url',
+                'util',
+                'zlib',
+              ],
+              output: {
+                format: 'cjs',
+                entryFileNames: 'main.cjs',
+                exports: 'auto',
+              },
             },
           },
         },

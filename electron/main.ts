@@ -30,6 +30,7 @@ import type {
 } from '../src/shared/types'
 
 const VITE_DEV_SERVER_URL = process.env.VITE_DEV_SERVER_URL
+const APP_USER_MODEL_ID = 'PocketMind.PocketMindAIReviewerAndHumanizer'
 
 let mainWindow: BrowserWindow | null = null
 let currentWorkspace: WorkspaceSnapshot | null = null
@@ -50,6 +51,25 @@ function resolvePreload(): string {
     if (fs.existsSync(full)) return full
   }
   return candidates[0]
+}
+
+/** Store/AppX Surface devices have crashed on GPU init before any window appears. */
+function hardenWindowsLaunch() {
+  if (process.platform !== 'win32') return
+  try {
+    app.setAppUserModelId(APP_USER_MODEL_ID)
+  } catch (err) {
+    console.error('setAppUserModelId failed', err)
+  }
+  try {
+    app.disableHardwareAcceleration()
+  } catch (err) {
+    console.error('disableHardwareAcceleration failed', err)
+  }
+  // Extra switches help when the Store sandbox rejects GPU/process sandbox defaults.
+  app.commandLine.appendSwitch('disable-gpu')
+  app.commandLine.appendSwitch('disable-gpu-compositing')
+  app.commandLine.appendSwitch('in-process-gpu')
 }
 
 function resolveRendererIndex(): string {
@@ -309,6 +329,8 @@ process.on('uncaughtException', (err) => {
 process.on('unhandledRejection', (reason) => {
   console.error('unhandledRejection', reason)
 })
+
+hardenWindowsLaunch()
 
 app.whenReady().then(boot)
 

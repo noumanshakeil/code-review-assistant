@@ -12,14 +12,14 @@ Complete reference for the product, Store submission, packages, and every image 
 |--------|--------|
 | **Product name** | PocketMind AI: Reviewer And Humanizer |
 | **Publisher** | PocketMind |
-| **Version** | 1.0.0 |
+| **Version** | 1.0.2 |
 | **Platform** | Windows 10/11 desktop (Electron + React + TypeScript + Vite) |
 | **Package** | MSIX / AppX (`runFullTrust` Desktop Bridge) |
 | **Support email** | support.pocketmind@gmail.com |
 | **Privacy policy** | https://noumanshakeil.github.io/#privacy-policy |
 | **Website** | https://noumanshakeil.github.io/ |
 | **Source repo** | https://github.com/noumanshakeil/code-review-assistant |
-| **Release (MSIX + assets)** | https://github.com/noumanshakeil/code-review-assistant/releases/tag/v1.0.1 |
+| **Release (MSIX + assets)** | https://github.com/noumanshakeil/code-review-assistant/releases/tag/v1.0.2 |
 
 ### What the app does
 
@@ -48,7 +48,7 @@ Must match Partner Center exactly:
 | Application ID | `PocketMindAIReviewerAndHumanizer` |
 | Capability | `runFullTrust` (required for Electron desktop) |
 
-**MSIX file name:** `PocketMindAIReviewerAndHumanizer-1.0.0-x64.appx`
+**MSIX file name:** `PocketMindAIReviewerAndHumanizer-1.0.2-x64.appx`
 
 ---
 
@@ -70,11 +70,11 @@ code-review-assistant/
 
 ### B) GitHub Release download (easiest on your PC)
 
-https://github.com/noumanshakeil/code-review-assistant/releases/tag/v1.0.1
+https://github.com/noumanshakeil/code-review-assistant/releases/tag/v1.0.2
 
 | Asset | Contents |
 |--------|-----------|
-| `PocketMindAIReviewerAndHumanizer-1.0.0-x64.appx` | Store / sideload package (~182 MB) |
+| `PocketMindAIReviewerAndHumanizer-1.0.2-x64.appx` | Store / sideload package |
 | `cra-store-assets.zip` | All listing images + package icons + privacy text |
 
 ### C) On this Cloud Agent machine
@@ -83,7 +83,7 @@ https://github.com/noumanshakeil/code-review-assistant/releases/tag/v1.0.1
 |------|------|
 | `/workspace/store-assets/` | Listing images |
 | `/workspace/build/` + `build/appx/` | Package icons |
-| `/workspace/release/PocketMindAIReviewerAndHumanizer-1.0.0-x64.appx` | Built MSIX |
+| `/workspace/release/PocketMindAIReviewerAndHumanizer-1.0.2-x64.appx` | Built MSIX |
 | `/opt/cursor/artifacts/store-listing/` | Copy of listing images + zip |
 
 ### D) Get everything onto your D: drive
@@ -95,9 +95,9 @@ Set-Location "D:\code-review-assistant"
 git clone https://github.com/noumanshakeil/code-review-assistant.git app
 
 New-Item -ItemType Directory -Force -Path "D:\code-review-assistant\downloads" | Out-Null
-Invoke-WebRequest -Uri "https://github.com/noumanshakeil/code-review-assistant/releases/download/v1.0.1/PocketMindAIReviewerAndHumanizer-1.0.0-x64.appx" `
-  -OutFile "D:\code-review-assistant\downloads\PocketMindAIReviewerAndHumanizer-1.0.0-x64.appx"
-Invoke-WebRequest -Uri "https://github.com/noumanshakeil/code-review-assistant/releases/download/v1.0.1/cra-store-assets.zip" `
+Invoke-WebRequest -Uri "https://github.com/noumanshakeil/code-review-assistant/releases/download/v1.0.2/PocketMindAIReviewerAndHumanizer-1.0.2-x64.appx" `
+  -OutFile "D:\code-review-assistant\downloads\PocketMindAIReviewerAndHumanizer-1.0.2-x64.appx"
+Invoke-WebRequest -Uri "https://github.com/noumanshakeil/code-review-assistant/releases/download/v1.0.2/cra-store-assets.zip" `
   -OutFile "D:\code-review-assistant\downloads\cra-store-assets.zip"
 Expand-Archive -Path "D:\code-review-assistant\downloads\cra-store-assets.zip" `
   -DestinationPath "D:\code-review-assistant\downloads\store-assets" -Force
@@ -107,7 +107,7 @@ Then:
 
 - App + images in repo: `D:\code-review-assistant\app\store-assets\`
 - Unzipped kit: `D:\code-review-assistant\downloads\store-assets\`
-- MSIX: `D:\code-review-assistant\downloads\PocketMindAIReviewerAndHumanizer-1.0.0-x64.appx`
+- MSIX: `D:\code-review-assistant\downloads\PocketMindAIReviewerAndHumanizer-1.0.2-x64.appx`
 - This doc: `D:\code-review-assistant\app\docs\APP-DETAILS.md`
 
 ---

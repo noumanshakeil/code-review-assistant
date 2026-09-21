@@ -6,8 +6,6 @@ import fs from 'node:fs'
 import Store from 'electron-store'
 import type { ProviderId, ProviderSettings, StoredSecrets } from '../../src/shared/types'
 
-const require = createRequire(import.meta.url)
-
 type Preferences = {
   provider: ProviderSettings
   theme: 'system' | 'light' | 'dark'
@@ -28,11 +26,24 @@ const defaults: Preferences = {
 /** Lazily created after Electron app is available — avoids Store crash before ready. */
 let prefsStore: Store<Preferences> | null = null
 
+function resolveElectronApp(): { getPath: (name: string) => string } | null {
+  try {
+    // Prefer the live Electron binding (CJS or ESM main). Falls back for Node smoke tests.
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const electron = createRequire(import.meta.url)('electron') as {
+      app?: { getPath: (name: string) => string }
+    }
+    return electron.app ?? null
+  } catch {
+    return null
+  }
+}
+
 function dataDir(): string {
   // Prefer Electron userData (correct inside Microsoft Store AppX). Fall back for Node smoke tests.
   try {
-    const electron = require('electron') as { app?: { getPath: (name: string) => string } }
-    if (electron.app?.getPath) return electron.app.getPath('userData')
+    const electronApp = resolveElectronApp()
+    if (electronApp?.getPath) return electronApp.getPath('userData')
   } catch {
     /* running outside Electron */
   }
