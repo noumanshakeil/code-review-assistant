@@ -53,7 +53,14 @@ function resolvePreload(): string {
   return candidates[0]
 }
 
-/** Store/AppX Surface devices have crashed on GPU init before any window appears. */
+/**
+ * Store/AppX certification (ACCESS_VIOLATION 0xc0000005) is a native GPU/ANGLE
+ * crash — not a JS dialog. disableHardwareAcceleration() alone is not enough on
+ * WAW-DL08-class machines.
+ *
+ * Do NOT combine disable-gpu with in-process-gpu: that blocks Chromium painting
+ * so ready-to-show never fires. Use SwiftShader ANGLE + reveal fallbacks instead.
+ */
 function hardenWindowsLaunch() {
   if (process.platform !== 'win32') return
   try {
@@ -61,14 +68,22 @@ function hardenWindowsLaunch() {
   } catch (err) {
     console.error('setAppUserModelId failed', err)
   }
-  // Software rendering avoids GPU-driver hard crashes in Store containers.
-  // Do NOT also force --disable-gpu / in-process-gpu — that combo can prevent
-  // Chromium from painting, so ready-to-show never fires and the window stays hidden.
   try {
     app.disableHardwareAcceleration()
   } catch (err) {
     console.error('disableHardwareAcceleration failed', err)
   }
+  // Must run before app.ready. Keeps GPU out of the hardware/driver path that AVs
+  // under the Store container while still allowing software compositing to paint.
+  app.commandLine.appendSwitch('disable-gpu')
+  app.commandLine.appendSwitch('disable-gpu-compositing')
+  app.commandLine.appendSwitch('disable-direct-composition')
+  app.commandLine.appendSwitch('use-angle', 'swiftshader')
+  app.commandLine.appendSwitch('use-gl', 'angle')
+  app.commandLine.appendSwitch('disable-features', 'CalculateNativeWinOcclusion')
+  // Full-trust AppX already has its own container; Chromium's sandbox has AVed here.
+  app.commandLine.appendSwitch('no-sandbox')
+  app.commandLine.appendSwitch('disable-chromium-sandbox')
 }
 
 function resolveRendererIndex(): string {

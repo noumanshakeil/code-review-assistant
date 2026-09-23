@@ -4,11 +4,13 @@ copyright: Copyright (c) PocketMind
 directories:
   output: release
   buildResources: build
-# Main/preload JS deps are bundled into dist-electron. Only ship built output + package.json.
+# Main/preload JS deps are bundled into dist-electron. Renderer is Vite-bundled in dist/.
+# Do NOT ship production node_modules (monaco alone was ~100MB+ of unused asar bloat).
 files:
   - dist/**/*
   - dist-electron/**/*
   - package.json
+  - "!**/node_modules/**"
 asar: true
 extraResources:
   - from: resources

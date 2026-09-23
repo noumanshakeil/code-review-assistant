@@ -24,18 +24,24 @@ jobs:
         run: npm ci
       - name: Brand assets
         run: python scripts/generate-brand-assets.py
+      - name: Store launch + identity guards (pre-pack)
+        run: npm run check:store
       - name: Build AppX / MSIX
         id: build
         continue-on-error: true
         run: npm run build:msix
-      - name: Assert CJS entry (Store crash guard)
+      - name: Assert CJS entry + GPU hardening (Store crash guard)
         if: steps.build.outcome == 'success'
         shell: pwsh
         run: |
           if (-not (Test-Path dist-electron/main.cjs)) { throw "missing dist-electron/main.cjs" }
           if (Test-Path dist-electron/main.js) { throw "ESM main.js must not ship — use main.cjs only" }
           if (Select-String -Path dist-electron/main.cjs -Pattern 'keytar' -Quiet) { throw "keytar must not be bundled" }
-          Write-Host "CJS main OK — ready for AppX"
+          if (-not (Select-String -Path dist-electron/main.cjs -Pattern 'disable-gpu' -Quiet)) { throw "missing disable-gpu hardening" }
+          if (Select-String -Path dist-electron/main.cjs -Pattern 'in-process-gpu' -Quiet) { throw "in-process-gpu must not ship" }
+          if (-not (Select-String -Path dist-electron/main.cjs -Pattern 'swiftshader' -Quiet)) { throw "missing SwiftShader ANGLE path" }
+          npm run check:store
+          Write-Host "CJS main + GPU hardening OK — ready for AppX"
       - name: Dump AppxManifest on failure
         if: steps.build.outcome == 'failure'
         shell: pwsh

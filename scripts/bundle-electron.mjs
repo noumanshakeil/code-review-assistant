@@ -70,5 +70,19 @@ if (mainCjs.trimStart().startsWith('import ')) {
 if (mainCjs.includes('keytar')) {
   throw new Error('keytar must not appear in the packaged main process')
 }
+for (const required of [
+  'disableHardwareAcceleration',
+  'disable-gpu',
+  'disable-direct-composition',
+  'swiftshader',
+  'no-sandbox',
+]) {
+  if (!mainCjs.includes(required)) {
+    throw new Error(`main.cjs missing Store GPU hardening: ${required}`)
+  }
+}
+if (mainCjs.includes('in-process-gpu')) {
+  throw new Error('main.cjs must not use in-process-gpu with disable-gpu')
+}
 
 console.log('bundle-electron: wrote dist-electron/main.cjs + preload.cjs')

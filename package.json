@@ -2,7 +2,7 @@
   "name": "pocketmind-ai-reviewer-and-humanizer",
   "productName": "PocketMind AI: Reviewer And Humanizer",
   "private": true,
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "AI-powered code reviewer and humanizer for Windows by PocketMind",
   "author": "PocketMind <support.pocketmind@gmail.com>",
   "type": "module",
@@ -19,7 +19,9 @@
     "lint": "oxlint",
     "typecheck": "tsc -b --pretty false",
     "start": "electron .",
-    "smoke": "tsx scripts/smoke.ts"
+    "smoke": "tsx scripts/smoke.ts",
+    "check:store": "node scripts/check-store-pack.mjs",
+    "test:launch-hardening": "node scripts/check-store-pack.mjs"
   },
   "dependencies": {
     "@monaco-editor/react": "^4.7.0",

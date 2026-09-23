@@ -33,12 +33,13 @@ npm run dev
 
 ```bash
 npm run assets:brand   # sharp logos + Store rasters into build/ and store-assets/
+npm run check:store    # identity + GPU launch-hardening guards (run before pack)
 npm run build:msix     # produces release/*.appx (run on Windows for Store upload)
 ```
 
-Store listing images, feature graphic, logos, and Partner Center notes: [`store-assets/README.md`](./store-assets/README.md).
+Store listing images, feature graphic, logos, and Partner Center notes: [`store-assets/README.md`](./store-assets/README.md). Full Windows rebuild kit: [`docs/BUILD-MSIX-ON-WINDOWS.md`](./docs/BUILD-MSIX-ON-WINDOWS.md).
 
-Before uploading to Partner Center, set `appx.publisher` in `electron-builder.yml` to your exact **Publisher ID** CN from the Microsoft developer account.
+Publisher CN is already set in `electron-builder.yml` to the Partner Center reserved value — do not invent a different identity.
 
 ## Scripts
 
@@ -49,6 +50,7 @@ Before uploading to Partner Center, set `appx.publisher` in `electron-builder.ym
 | `npm run build:win` | Windows NSIS + portable `.exe` |
 | `npm run build:msix` | Windows AppX/MSIX |
 | `npm run assets:brand` | Regenerate package + Store brand rasters |
+| `npm run check:store` | AppX identity + GPU launch-hardening guards |
 | `npm run smoke` | Headless ingest / confirm-guard checks |
 
 ## Support

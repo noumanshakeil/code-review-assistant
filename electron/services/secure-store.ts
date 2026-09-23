@@ -28,7 +28,18 @@ let prefsStore: Store<Preferences> | null = null
 
 function resolveElectronApp(): { getPath: (name: string) => string } | null {
   try {
-    // Prefer the live Electron binding (CJS or ESM main). Falls back for Node smoke tests.
+    // Prefer require('electron') after CJS bundle (AppX main.cjs). Fall back to
+    // createRequire(import.meta.url) for tsx / ESM smoke paths.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const req = (globalThis as any).require as undefined | NodeRequire
+    if (typeof req === 'function') {
+      const electron = req('electron') as { app?: { getPath: (name: string) => string } }
+      if (electron?.app) return electron.app
+    }
+  } catch {
+    /* continue */
+  }
+  try {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const electron = createRequire(import.meta.url)('electron') as {
       app?: { getPath: (name: string) => string }
